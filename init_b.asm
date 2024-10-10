@@ -4,68 +4,101 @@
 .global start
 .global sudoku_candidatos_propagar_arm
 
+@ Recorre la cuadricula y llama a las funciones de propagacion si la celda tiene un valor distinto a 0
 sudoku_candidatos_propagar_arm:
 	@ r0 = cuadricula
-	@ r1 = fila
-	@ r2 = columna
-	@ r3 = valor celda
-	push {r0, lr}
+	@ r1 = indice fila
+	@ r2 = indice columna
+	@ r3 = valor actual celda
+	@ r6 = bit desplazado (se usara para desactivar los candidatos)
 
-	mov r4, #0
-    add r4, r3, #3				@ r4 = displace = (3 + valor)
+	push {r0, r5, lr}
 
-	mov r6, #1					@ r6 bit de desactivacion
-    lsl r6, r6, r4				@ desplazar bit a la izquierda r4 posiciones
+	loop_i:
+		cmp r1, #9
+		bge loop_i_end					@ Comprobar si se ha llegado a la ultima fila
 
-@ ---------------------------- Actualizar candidatos de las columnas (horizontalmente) ----------------------------
-	bl update_column_candidates
+		lsl r4, r1, #5					@ Desplazamiento a siguiente fila (r1 * 32)
+
+		mov r2, #0
+	loop_j:
+		cmp r2, #9
+		bge loop_j_end					@ Comprobar si se ha llegado a la ultima columna
+
+		lsl r5, r2, #1					@ Desplazamiento a siguiente columna (r2 * 2)
+
+		add r7, r4, r5					@ Desplazamiento total (fila + columna)
+		ldrh r3, [r0, r7]
+
+
+		and r3, r3, #0xF				@ Objeter valor actual de la celda (celda_leer_valor)
+
+		cmp r3, #0						@ Compara si hay un valor en la celda (si == 0, se omite la propagacion)
+		beq skip_propagation
+		push {r1, r2, lr}			@ Backup de indices y valor de la celda
+
+		add r8, r3, #3					@ r4 = displace = (3 + r3)
+		mov r6, #1
+		lsl r6, r6, r8					@ desplazar bit a la izquierda r4 posiciones
+
 @ ---------------------------- Actualizar candidatos de las filas (verticalmente) ----------------------------
-	bl update_row_candidates
+		bl update_row_candidates
+@ ---------------------------- Actualizar candidatos de las columnas (horizontalmente) ----------------------------
+		bl update_column_candidates
+
+		pop {r1, r2, lr}			@ Restaurar valor de los indices y la celda
+		skip_propagation:
+			add r2, r2, #1
+			b loop_j
+	loop_j_end:
+		add r1, r1, #1
+		b loop_i
+	loop_i_end:
+		pop {r0, r5, lr}				@ Restaurar valor de la cuadricula y el programa
+		bx lr
+
 @ ---------------------------- Calculo de los indices para la seccion correspondiente ----------------------------
-	bl update_region_candidates
-
-	pop {r0, lr}
-	bx lr
-
-
-update_column_candidates:
-	mov r7, #0
-col_loop:
-    cmp r7, #9					@ Comparar si se ha llegado a la ultima columna (9)
-    bge fin_col
-
-	lsl r8, r7, #1				@ r8 = desplazamiento a siguiente celda
-
-	ldrh r9, [r0, r8]
-
-    bic r9, r9, r6           	@ celda &= ~(1 << displace)
-    strh r9, [r0, r8]
-
-    add r7, r7, #1
-    b col_loop
-
-fin_col:
-	bx lr
-
+	@bl update_region_candidates
 
 update_row_candidates:
-	mov r7, #0					@ reinicar contador
+    mov r1, #0                   @ Inicializar el contador de fila en 0
 fila_loop:
-    cmp r7, #9                 @ Comparar si se ha llegado a la ultima fila (9)
-    bge fin_fila
+    cmp r1, #9                   @ Comparar si se ha llegado a la última fila (9)
+    bge fin_fila                 @ Si es mayor o igual a 9, salir del bucle
 
-	lsl r8, r7, #5				@ r8 = desplazamiento a siguiente celda
+    lsl r2, r1, #5               @ Desplazamiento de la fila (r1 * 32)
+    add r8, r2, r5               @ r4 = desplazamiento fila + columna (columna es fija en r5)
 
-	ldrh r9, [r0, r8]
+    ldrh r3, [r0, r8]            @ Cargar el valor de la celda de la fila actual
 
-    bic r9, r9, r6           	@ celda &= ~(1 << displace)
-    strh r9, [r0, r8]
+    bic r3, r3, r6               @ celda &= ~(1 << displace) - Actualizar los bits candidatos
+    strh r3, [r0, r8]            @ Guardar el valor actualizado en la celda
 
-    add r7, r7, #1
-    b fila_loop
+    add r1, r1, #1               @ Siguiente fila
+    b fila_loop                  @ Repetir para la siguiente fila
 
 fin_fila:
-	bx lr
+    bx lr
+
+update_column_candidates:
+    mov r1, #0                   @ Inicializar el contador de columna en 0
+col_loop:
+    cmp r1, #9                   @ Comparar si se ha llegado a la última columna (9)
+    bge fin_col                  @ Si es mayor o igual a 9, salir del bucle
+
+    lsl r2, r1, #1               @ Desplazar la columna (r1 * 2) para acceder a la celda correcta
+    add r8, r4, r2               @ r5 = desplazamiento fila + desplazamiento columna
+
+    ldrh r3, [r0, r8]            @ Cargar el valor de la celda en la columna y fila actuales
+
+    bic r3, r3, r6               @ celda &= ~(1 << displace) - Actualizar los bits candidatos
+    strh r3, [r0, r8]            @ Guardar el valor actualizado en la celda
+
+    add r1, r1, #1               @ Incrementar el contador de columna
+    b col_loop                   @ Repetir para la siguiente columna
+
+fin_col:
+    bx lr
 
 
 update_region_candidates:

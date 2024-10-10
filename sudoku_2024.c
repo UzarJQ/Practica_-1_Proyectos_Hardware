@@ -31,22 +31,20 @@ activar_error(CELDA celda)
 }
 
 /* *****************************************************************************
- * propaga el valor de una determinada celda
- * para actualizar las listas de candidatos
- * de las celdas en su su fila, columna y region */
+ * FUNCIONALIDAD: propagar el valor de una determinada celda para actualizar las listas de candidatos en su fila, columna y region */
 void
 sudoku_candidatos_propagar_c(CELDA cuadricula[NUM_FILAS][NUM_COLUMNAS], int fila, int columna, uint8_t valor)
 {
-	int displace = 3 + (int)valor;
+	int displace = 3 + (int)valor;	// Desplazamiento necesario para situar el bit en la posición del candidato correspondiente al valor
 
-    /* recorrer fila descartando el valor en la lista de candidatos */
+    /* recorrer cada columna descartando el valor en la lista de candidatos */
     int col = 0;
     while(col < NUM_COLUMNAS - 7){
-    	cuadricula[fila][col] &= ~(1 << displace);
+    	cuadricula[fila][col] &= ~(1 << displace);	// Desactivar el candidato de la lista con una operación NAND
     	col++;
     }
 
-    /* recorrer columna descartando el valor en la lista de candidatos */
+    /* recorrer cada fila descartando el valor en la lista de candidatos */
     int row = 0;
     while(row < NUM_FILAS){
     	cuadricula[row][columna] &= ~(1 << displace);
@@ -54,7 +52,7 @@ sudoku_candidatos_propagar_c(CELDA cuadricula[NUM_FILAS][NUM_COLUMNAS], int fila
     }
 
 
-    /*Calcular la posicion inicial para la region correspondiente*/
+    /*Calcular la posicion inicial para cada region 3x3 correspondiente*/
     int row_start = (fila / 3) * 3;
     int col_start = (columna / 3) * 3;
 
@@ -70,6 +68,7 @@ sudoku_candidatos_propagar_c(CELDA cuadricula[NUM_FILAS][NUM_COLUMNAS], int fila
     }
 }
 
+// Recorrer la cuadricula inicializando los candidatos de las celdas sin valor inicial (PISTA)
 void
 init_candidatos(CELDA cuadricula[NUM_FILAS][NUM_COLUMNAS]){
 	int row=0;
@@ -88,19 +87,18 @@ init_candidatos(CELDA cuadricula[NUM_FILAS][NUM_COLUMNAS]){
 	}
 }
 
+// Recorrer la cuadricula aumentando la cantidad de celdas vacias (valor 0) y llamando a la funcion para propagar (si existe un valor)
 void
-propagar_if_value(CELDA *cuadricula[NUM_FILAS][NUM_COLUMNAS], int *celdas_vacias){
+propagar_if_value(CELDA cuadricula[NUM_FILAS][NUM_COLUMNAS], int *celdas_vacias){
 	int row=0;
 	while(row < NUM_FILAS){
 		int col=0;
 		while(col < NUM_COLUMNAS - 7){
-			uint8_t celda_actual = cuadricula[row][col];
-			uint8_t valor_actual = celda_leer_valor(celda_actual);
+			uint8_t valor_actual = celda_leer_valor(cuadricula[row][col]);
 			if(valor_actual == 0x0000){
 				(*celdas_vacias)++;
 			} else {
-				sudoku_candidatos_propagar_arm(&cuadricula, row, col, valor_actual);
-				//sudoku_candidatos_propagar_c(cuadricula,row,col,valor_actual);
+				sudoku_candidatos_propagar_arm(cuadricula, row, col, valor_actual);
 			}
 			col++;
 		}
@@ -120,7 +118,9 @@ sudoku_candidatos_init_c(CELDA cuadricula[NUM_FILAS][NUM_COLUMNAS])
     init_candidatos(cuadricula);
 
     /* TODO: propagar si la celda tiene valor*/
-    propagar_if_value(cuadricula, &celdas_vacias);
+    uint8_t valor_actual = celda_leer_valor(cuadricula[0][0]);
+    sudoku_candidatos_propagar_arm(cuadricula, 0, 0, valor_actual);
+    //propagar_if_value(cuadricula, &celdas_vacias);
 
     return celdas_vacias;
 }
