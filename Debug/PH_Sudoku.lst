@@ -3,1246 +3,1322 @@ PH_Sudoku.elf:     file format elf32-littlearm
 
 Sections:
 Idx Name          Size      VMA       LMA       File off  Algn
-  0 .text         00000a74  0c000000  0c000000  00008000  2**2
+  0 .text         00000afc  0c000000  0c000000  00008000  2**2
                   CONTENTS, ALLOC, LOAD, READONLY, CODE
-  1 .data         00000120  0c000a80  0c000a80  00008a80  2**5
+  1 .data         00000120  0c000b00  0c000b00  00008b00  2**5
                   CONTENTS, ALLOC, LOAD, DATA
-  2 .ARM.attributes 0000002e  00000000  00000000  00008ba0  2**0
+  2 .ARM.attributes 0000002e  00000000  00000000  00008c20  2**0
                   CONTENTS, READONLY
-  3 .comment      0000002a  00000000  00000000  00008bce  2**0
+  3 .comment      0000002a  00000000  00000000  00008c4e  2**0
                   CONTENTS, READONLY
-  4 .debug_line   00000507  00000000  00000000  00008bf8  2**0
+  4 .debug_line   00000515  00000000  00000000  00008c78  2**0
                   CONTENTS, READONLY, DEBUGGING
-  5 .debug_info   000004dc  00000000  00000000  000090ff  2**0
+  5 .debug_info   00000511  00000000  00000000  0000918d  2**0
                   CONTENTS, READONLY, DEBUGGING
-  6 .debug_abbrev 00000126  00000000  00000000  000095db  2**0
+  6 .debug_abbrev 00000126  00000000  00000000  0000969e  2**0
                   CONTENTS, READONLY, DEBUGGING
-  7 .debug_aranges 00000040  00000000  00000000  00009708  2**3
+  7 .debug_aranges 00000040  00000000  00000000  000097c8  2**3
                   CONTENTS, READONLY, DEBUGGING
-  8 .debug_macinfo 00006574  00000000  00000000  00009748  2**0
+  8 .debug_macinfo 00006574  00000000  00000000  00009808  2**0
                   CONTENTS, READONLY, DEBUGGING
-  9 .debug_loc    00000160  00000000  00000000  0000fcbc  2**0
+  9 .debug_loc    0000018c  00000000  00000000  0000fd7c  2**0
                   CONTENTS, READONLY, DEBUGGING
- 10 .debug_pubnames 0000006b  00000000  00000000  0000fe1c  2**0
+ 10 .debug_pubnames 0000006b  00000000  00000000  0000ff08  2**0
                   CONTENTS, READONLY, DEBUGGING
- 11 .debug_pubtypes 00000035  00000000  00000000  0000fe87  2**0
+ 11 .debug_pubtypes 00000035  00000000  00000000  0000ff73  2**0
                   CONTENTS, READONLY, DEBUGGING
- 12 .debug_str    000001d6  00000000  00000000  0000febc  2**0
+ 12 .debug_str    00000202  00000000  00000000  0000ffa8  2**0
                   CONTENTS, READONLY, DEBUGGING
- 13 .debug_frame  00000110  00000000  00000000  00010094  2**2
+ 13 .debug_frame  00000130  00000000  00000000  000101ac  2**2
                   CONTENTS, READONLY, DEBUGGING
 
 Disassembly of section .text:
 
 0c000000 <sudoku_candidatos_propagar_arm>:
-	@ r5 = desplazamiento de la columna
+.global start
+.global sudoku_candidatos_propagar_arm
+
+@ Recorre la cuadricula llamando a las funciones de propagacion (fila, columna y region) SI la celda tiene un valor distinto a 0
+sudoku_candidatos_propagar_arm:
+	push {r0, r5, r11, r12, lr}
+ c000000:	e92d5821 	push	{r0, r5, fp, ip, lr}
 	@ r6 = bit desplazado (se usara para desactivar los candidatos)
 	@ r7 = desplazamiento total (r4 + r5)
+	@ r10 = contador de celdas vacias
+	@ r8-r12 = registros de trabajo
 
+	mov r10, #0
+ c000004:	e3a0a000 	mov	sl, #0
+
+0c000008 <loop_i>:
 loop_i:
 	cmp r1, #9
- c000000:	e3510009 	cmp	r1, #9
+ c000008:	e3510009 	cmp	r1, #9
 	bge loop_i_end
- c000004:	aa000016 	bge	c000064 <loop_i_end>
+ c00000c:	aa000019 	bge	c000078 <loop_i_end>
 
-	lsl r4, r1, #5						@ Desplazamiento a siguiente fila (r1 * 32 bytes)
- c000008:	e1a04281 	lsl	r4, r1, #5
+	lsl r4, r1, #5					@ Desplazamiento a siguiente fila (r1 * 32 bytes)
+ c000010:	e1a04281 	lsl	r4, r1, #5
 
 	mov r2, #0
- c00000c:	e3a02000 	mov	r2, #0
+ c000014:	e3a02000 	mov	r2, #0
 
-0c000010 <loop_j>:
+0c000018 <loop_j>:
 loop_j:
 	cmp r2, #9
- c000010:	e3520009 	cmp	r2, #9
+ c000018:	e3520009 	cmp	r2, #9
 	bge loop_j_end					@ Comprobar si se ha llegado a la ultima columna
- c000014:	aa000010 	bge	c00005c <loop_j_end>
+ c00001c:	aa000013 	bge	c000070 <loop_j_end>
 
-	lsl r5, r2, #1					@ Desplazamiento a siguiente columna (r2 * 2)
- c000018:	e1a05082 	lsl	r5, r2, #1
+	lsl r5, r2, #1					@ Desplazamiento a siguiente columna (r2 * 2 bytes)
+ c000020:	e1a05082 	lsl	r5, r2, #1
 
 	add r7, r4, r5					@ Desplazamiento total (fila + columna)
- c00001c:	e0847005 	add	r7, r4, r5
+ c000024:	e0847005 	add	r7, r4, r5
 	ldrh r3, [r0, r7]
- c000020:	e19030b7 	ldrh	r3, [r0, r7]
+ c000028:	e19030b7 	ldrh	r3, [r0, r7]
 
 	and r3, r3, #0xF				@ Objeter valor actual de la celda (celda_leer_valor)
- c000024:	e203300f 	and	r3, r3, #15
-	cmp r3, #0						@ Compara si hay un valor en la celda (si == 0, se omite la propagacion)
- c000028:	e3530000 	cmp	r3, #0
-	beq skip_propagation
- c00002c:	0a000008 	beq	c000054 <skip_propagation>
+ c00002c:	e203300f 	and	r3, r3, #15
+	cmp r3, #0						@ Si valor == 0 se aumentan las celdas vacias y se omite la propagacion
+ c000030:	e3530000 	cmp	r3, #0
+	beq empty_cell
+ c000034:	0a000009 	beq	c000060 <empty_cell>
 
 	add r8, r3, #3					@ r8 = displace = (3 + r3)
- c000030:	e2838003 	add	r8, r3, #3
+ c000038:	e2838003 	add	r8, r3, #3
 	mov r6, #1
- c000034:	e3a06001 	mov	r6, #1
-	lsl r6, r6, r8					@ desplazar bit a la izquierda r4 posiciones
- c000038:	e1a06816 	lsl	r6, r6, r8
+ c00003c:	e3a06001 	mov	r6, #1
+	lsl r6, r6, r8					@ desplazar bit a la izquierda r8 posiciones
+ c000040:	e1a06816 	lsl	r6, r6, r8
+
+	push {r1, r2, r10, lr}			@ Backup de indices de fila y columna, y el contador de celdas vacias
+ c000044:	e92d4406 	push	{r1, r2, sl, lr}
 
 	bl update_row_candidates
- c00003c:	eb00000a 	bl	c00006c <update_row_candidates>
+ c000048:	eb00000d 	bl	c000084 <update_row_candidates>
 
 	bl update_column_candidates
- c000040:	eb000014 	bl	c000098 <update_column_candidates>
+ c00004c:	eb000017 	bl	c0000b0 <update_column_candidates>
 
-	push {r1, r2, lr}
- c000044:	e92d4006 	push	{r1, r2, lr}
 	bl calc_region_indexes
- c000048:	eb00001d 	bl	c0000c4 <calc_region_indexes>
+ c000050:	eb000021 	bl	c0000dc <calc_region_indexes>
 	bl update_region_candidates
- c00004c:	eb00002f 	bl	c000110 <region_row_loop>
-	pop {r1, r2, lr}
- c000050:	e8bd4006 	pop	{r1, r2, lr}
+ c000054:	eb000033 	bl	c000128 <region_row_loop>
+	pop {r1, r2, r10, lr}			@ Restaurar valor de los indices y las celdas vacias
+ c000058:	e8bd4406 	pop	{r1, r2, sl, lr}
 
-0c000054 <skip_propagation>:
+	b next_column
+ c00005c:	ea000001 	b	c000068 <next_column>
 
-skip_propagation:
+0c000060 <empty_cell>:
+
+empty_cell:
+	add r10, r10, #1
+ c000060:	e28aa001 	add	sl, sl, #1
+	b next_column
+ c000064:	eaffffff 	b	c000068 <next_column>
+
+0c000068 <next_column>:
+
+next_column:
 	add r2, r2, #1
- c000054:	e2822001 	add	r2, r2, #1
+ c000068:	e2822001 	add	r2, r2, #1
 	b loop_j
- c000058:	eaffffec 	b	c000010 <loop_j>
+ c00006c:	eaffffe9 	b	c000018 <loop_j>
 
-0c00005c <loop_j_end>:
+0c000070 <loop_j_end>:
 loop_j_end:
 	add r1, r1, #1
- c00005c:	e2811001 	add	r1, r1, #1
+ c000070:	e2811001 	add	r1, r1, #1
 	b loop_i
- c000060:	eaffffe6 	b	c000000 <sudoku_candidatos_propagar_arm>
+ c000074:	eaffffe3 	b	c000008 <loop_i>
 
-0c000064 <loop_i_end>:
+0c000078 <loop_i_end>:
 loop_i_end:
-	pop {r0, r5, lr}					@ Restaurar valor de la cuadricula y el programa sudoku9x9
- c000064:	e8bd4021 	pop	{r0, r5, lr}
-	B stop
- c000068:	ea00003e 	b	c000168 <stop>
+	pop {r0, r5, r11, r12, lr}					@ Restaurar valor de los punteros a funciones y cuadricula
+ c000078:	e8bd5821 	pop	{r0, r5, fp, ip, lr}
+	mov r0, r10									@ Almacenar el contador de celdas vacias en r0 para devolverse como resultado de la funcion
+ c00007c:	e1a0000a 	mov	r0, sl
+	bx lr										@ Devolver el control a la funcion en C
+ c000080:	e12fff1e 	bx	lr
 
-0c00006c <update_row_candidates>:
+0c000084 <update_row_candidates>:
 
 
 update_row_candidates:
     mov r8, #0
- c00006c:	e3a08000 	mov	r8, #0
+ c000084:	e3a08000 	mov	r8, #0
 
-0c000070 <fila_loop>:
+0c000088 <fila_loop>:
 fila_loop:
     cmp r8, #9
- c000070:	e3580009 	cmp	r8, #9
+ c000088:	e3580009 	cmp	r8, #9
     bge fin_fila
- c000074:	aa000006 	bge	c000094 <fin_fila>
+ c00008c:	aa000006 	bge	c0000ac <fin_fila>
 
-    lsl r9, r8, #5               		@ Desplazar la fila (r1 * 32)
- c000078:	e1a09288 	lsl	r9, r8, #5
+    lsl r9, r8, #5               		@ Desplazar la fila (r8 * 32)
+ c000090:	e1a09288 	lsl	r9, r8, #5
     add r10, r9, r5               		@ r10 = desplazamiento total = fila + columna (columna fija para r5)
- c00007c:	e089a005 	add	sl, r9, r5
+ c000094:	e089a005 	add	sl, r9, r5
 
     ldrh r3, [r0, r10]
- c000080:	e19030ba 	ldrh	r3, [r0, sl]
+ c000098:	e19030ba 	ldrh	r3, [r0, sl]
 
     bic r3, r3, r6               		@ celda &= ~(1 << displace) - Actualizar el bit candidato
- c000084:	e1c33006 	bic	r3, r3, r6
+ c00009c:	e1c33006 	bic	r3, r3, r6
     strh r3, [r0, r10]
- c000088:	e18030ba 	strh	r3, [r0, sl]
+ c0000a0:	e18030ba 	strh	r3, [r0, sl]
 
     add r8, r8, #1
- c00008c:	e2888001 	add	r8, r8, #1
+ c0000a4:	e2888001 	add	r8, r8, #1
     b fila_loop
- c000090:	eafffff6 	b	c000070 <fila_loop>
+ c0000a8:	eafffff6 	b	c000088 <fila_loop>
 
-0c000094 <fin_fila>:
+0c0000ac <fin_fila>:
 
 fin_fila:
     bx lr
- c000094:	e12fff1e 	bx	lr
+ c0000ac:	e12fff1e 	bx	lr
 
-0c000098 <update_column_candidates>:
+0c0000b0 <update_column_candidates>:
 
 update_column_candidates:
     mov r8, #0
- c000098:	e3a08000 	mov	r8, #0
+ c0000b0:	e3a08000 	mov	r8, #0
 
-0c00009c <col_loop>:
+0c0000b4 <col_loop>:
 col_loop:
     cmp r8, #9
- c00009c:	e3580009 	cmp	r8, #9
+ c0000b4:	e3580009 	cmp	r8, #9
     bge fin_col
- c0000a0:	aa000006 	bge	c0000c0 <fin_col>
+ c0000b8:	aa000006 	bge	c0000d8 <fin_col>
 
-    lsl r9, r8, #1               		@ Desplazar la columna (r1 * 2)
- c0000a4:	e1a09088 	lsl	r9, r8, #1
-    add r10, r4, r9               		@ r8 = desplazamiento total = fila + columna (fila fija para r4)
- c0000a8:	e084a009 	add	sl, r4, r9
+    lsl r9, r8, #1               		@ Desplazar la columna (r8 * 2)
+ c0000bc:	e1a09088 	lsl	r9, r8, #1
+    add r10, r4, r9               		@ r10 = desplazamiento total = fila + columna (fila fija para r4)
+ c0000c0:	e084a009 	add	sl, r4, r9
 
     ldrh r3, [r0, r10]
- c0000ac:	e19030ba 	ldrh	r3, [r0, sl]
+ c0000c4:	e19030ba 	ldrh	r3, [r0, sl]
 
     bic r3, r3, r6               		@ celda &= ~(1 << displace) - Actualizar bit candidato
- c0000b0:	e1c33006 	bic	r3, r3, r6
+ c0000c8:	e1c33006 	bic	r3, r3, r6
     strh r3, [r0, r10]
- c0000b4:	e18030ba 	strh	r3, [r0, sl]
+ c0000cc:	e18030ba 	strh	r3, [r0, sl]
 
     add r8, r8, #1
- c0000b8:	e2888001 	add	r8, r8, #1
+ c0000d0:	e2888001 	add	r8, r8, #1
     b col_loop
- c0000bc:	eafffff6 	b	c00009c <col_loop>
+ c0000d4:	eafffff6 	b	c0000b4 <col_loop>
 
-0c0000c0 <fin_col>:
+0c0000d8 <fin_col>:
 
 fin_col:
     bx lr
- c0000c0:	e12fff1e 	bx	lr
+ c0000d8:	e12fff1e 	bx	lr
 
-0c0000c4 <calc_region_indexes>:
+0c0000dc <calc_region_indexes>:
 
 
 calc_region_indexes:
 	mov r8, r2
- c0000c4:	e1a08002 	mov	r8, r2
+ c0000dc:	e1a08002 	mov	r8, r2
 	mov r9, #0
- c0000c8:	e3a09000 	mov	r9, #0
+ c0000e0:	e3a09000 	mov	r9, #0
 
-0c0000cc <col_index>:
+0c0000e4 <col_index>:
 col_index:
 	cmp r8, #3
- c0000cc:	e3580003 	cmp	r8, #3
+ c0000e4:	e3580003 	cmp	r8, #3
 	blt col_index_end					@ Si es menor a 3, termina el calculo de columna
- c0000d0:	ba000002 	blt	c0000e0 <col_index_end>
+ c0000e8:	ba000002 	blt	c0000f8 <col_index_end>
 
-	sub r8, r8, #3
- c0000d4:	e2488003 	sub	r8, r8, #3
-	add r9, r9, #3
- c0000d8:	e2899003 	add	r9, r9, #3
+	sub r8, r8, #3						@ Restas sucesivas para determinar la region de la celda (1°,2° o 3° region horizontal)
+ c0000ec:	e2488003 	sub	r8, r8, #3
+	add r9, r9, #3						@ Aumentar #3 para ubicarse al inicio de la region correspondiente
+ c0000f0:	e2899003 	add	r9, r9, #3
 	b col_index
- c0000dc:	eafffffa 	b	c0000cc <col_index>
+ c0000f4:	eafffffa 	b	c0000e4 <col_index>
 
-0c0000e0 <col_index_end>:
+0c0000f8 <col_index_end>:
 col_index_end:
 	mov r2, r9							@ Guardar el indice calculado en r1 (fila)
- c0000e0:	e1a02009 	mov	r2, r9
+ c0000f8:	e1a02009 	mov	r2, r9
 
 	mov r8, r1
- c0000e4:	e1a08001 	mov	r8, r1
+ c0000fc:	e1a08001 	mov	r8, r1
 	mov r9, #0
- c0000e8:	e3a09000 	mov	r9, #0
+ c000100:	e3a09000 	mov	r9, #0
 
-0c0000ec <row_index>:
+0c000104 <row_index>:
 row_index:
 	cmp r8, #3
- c0000ec:	e3580003 	cmp	r8, #3
+ c000104:	e3580003 	cmp	r8, #3
 	blt row_index_end					@ Si es menor a 3, termina el calculo de fila
- c0000f0:	ba000002 	blt	c000100 <row_index_end>
+ c000108:	ba000002 	blt	c000118 <row_index_end>
 
-	sub r8, r8, #3
- c0000f4:	e2488003 	sub	r8, r8, #3
-	add r9, r9, #3
- c0000f8:	e2899003 	add	r9, r9, #3
+	sub r8, r8, #3						@ Restas sucesivas para determinar la region de la celda (1°,2° o 3° region vertical)
+ c00010c:	e2488003 	sub	r8, r8, #3
+	add r9, r9, #3						@ Aumentar #3 para ubicarse al inicio de la region correspondiente
+ c000110:	e2899003 	add	r9, r9, #3
 	b row_index
- c0000fc:	eafffffa 	b	c0000ec <row_index>
+ c000114:	eafffffa 	b	c000104 <row_index>
 
-0c000100 <row_index_end>:
+0c000118 <row_index_end>:
 row_index_end:
 	mov r1, r9							@ Guardar el indice calculado en r2 (columna)
- c000100:	e1a01009 	mov	r1, r9
+ c000118:	e1a01009 	mov	r1, r9
 
-	add r8, r1, #3						@ Limite superior de la fila
- c000104:	e2818003 	add	r8, r1, #3
-	add r9, r2, #3						@ Limite superior de la columna
- c000108:	e2829003 	add	r9, r2, #3
+	add r8, r1, #3						@ r8 = Limite superior de la fila
+ c00011c:	e2818003 	add	r8, r1, #3
+	add r9, r2, #3						@ r9 = Limite superior de la columna
+ c000120:	e2829003 	add	r9, r2, #3
 
 	bx lr
- c00010c:	e12fff1e 	bx	lr
+ c000124:	e12fff1e 	bx	lr
 
-0c000110 <region_row_loop>:
-	@ r4 = limite max region (fila)
-	@ r5 = limite max region (columna)
+0c000128 <region_row_loop>:
 	@ r6 = bit e desactivacion desplazado
+	@ r8 = limite max region (fila)
+	@ r9 = limite max region (columna)
 
 region_row_loop:
 	cmp r1, r8
- c000110:	e1510008 	cmp	r1, r8
+ c000128:	e1510008 	cmp	r1, r8
 	bge end_of_region
- c000114:	aa00000c 	bge	c00014c <end_of_region>
+ c00012c:	aa00000c 	bge	c000164 <end_of_region>
 
-0c000118 <region_col_loop>:
+0c000130 <region_col_loop>:
 
 region_col_loop:
 	cmp r2, r9
- c000118:	e1520009 	cmp	r2, r9
+ c000130:	e1520009 	cmp	r2, r9
 	bge end_of_column
- c00011c:	aa000007 	bge	c000140 <end_of_column>
+ c000134:	aa000007 	bge	c000158 <end_of_column>
 
 	lsl r10, r1, #5						@ Desplazamiento fila (r1 * 32)
- c000120:	e1a0a281 	lsl	sl, r1, #5
+ c000138:	e1a0a281 	lsl	sl, r1, #5
 	lsl r11, r2, #1						@ Desplazamiento columna (r2 * 2)
- c000124:	e1a0b082 	lsl	fp, r2, #1
+ c00013c:	e1a0b082 	lsl	fp, r2, #1
 	add r12, r10, r11					@ Desplazamiento total de la celda (fila + columna)
- c000128:	e08ac00b 	add	ip, sl, fp
+ c000140:	e08ac00b 	add	ip, sl, fp
 
 	ldrh r3, [r0, r12]
- c00012c:	e19030bc 	ldrh	r3, [r0, ip]
+ c000144:	e19030bc 	ldrh	r3, [r0, ip]
 	bic r3, r3, r6						@ celda &= ~(1 << displace)
- c000130:	e1c33006 	bic	r3, r3, r6
+ c000148:	e1c33006 	bic	r3, r3, r6
 	strh r3, [r0, r12]
- c000134:	e18030bc 	strh	r3, [r0, ip]
+ c00014c:	e18030bc 	strh	r3, [r0, ip]
 	add r2, r2, #1
- c000138:	e2822001 	add	r2, r2, #1
+ c000150:	e2822001 	add	r2, r2, #1
 	b region_col_loop
- c00013c:	eafffff5 	b	c000118 <region_col_loop>
+ c000154:	eafffff5 	b	c000130 <region_col_loop>
 
-0c000140 <end_of_column>:
+0c000158 <end_of_column>:
 
 end_of_column:
 	add r1, r1, #1
- c000140:	e2811001 	add	r1, r1, #1
+ c000158:	e2811001 	add	r1, r1, #1
 	sub r2, r2, #3
- c000144:	e2422003 	sub	r2, r2, #3
+ c00015c:	e2422003 	sub	r2, r2, #3
 	b region_row_loop
- c000148:	eafffff0 	b	c000110 <region_row_loop>
+ c000160:	eafffff0 	b	c000128 <region_row_loop>
 
-0c00014c <end_of_region>:
+0c000164 <end_of_region>:
 
 end_of_region:
 	bx lr
- c00014c:	e12fff1e 	bx	lr
+ c000164:	e12fff1e 	bx	lr
 
-0c000150 <start>:
+0c000168 <start>:
 start:
 .arm    /* indicates that we are using the ARM instruction set */
 
 #------standard initial code
 # --- Setup interrupt / exception vectors
       B       Reset_Handler
- c000150:	eaffffff 	b	c000154 <Reset_Handler>
+ c000168:	eaffffff 	b	c00016c <Reset_Handler>
 
-0c000154 <Reset_Handler>:
+0c00016c <Reset_Handler>:
 # Reset Handler:
 # the processor starts executing this code after system reset
 ################################################################################
 Reset_Handler:
 #
         MOV     sp, #0x4000      /*  set up stack pointer (r13) */
- c000154:	e3a0d901 	mov	sp, #16384	; 0x4000
+ c00016c:	e3a0d901 	mov	sp, #16384	; 0x4000
 # If there are 4 or less parameters when calling a C function the compiler
 # assumes that they have been stored in r0-r3.
 # If there are more parameters you have to store them in the data stack
 # using the stack pointer
 # function __c_copy is in copy.c
         LDR     r0, =cuadricula  /*  puntero a la @ inicial de la cuadricula */
- c000158:	e59f000c 	ldr	r0, [pc, #12]	; c00016c <stop+0x4>
+ c000170:	e59f000c 	ldr	r0, [pc, #12]	; c000184 <stop+0x4>
 
 .extern     sudoku9x9
         ldr         r5, = sudoku9x9
- c00015c:	e59f500c 	ldr	r5, [pc, #12]	; c000170 <stop+0x8>
+ c000174:	e59f500c 	ldr	r5, [pc, #12]	; c000188 <stop+0x8>
         mov         lr, pc
- c000160:	e1a0e00f 	mov	lr, pc
+ c000178:	e1a0e00f 	mov	lr, pc
         bx          r5
- c000164:	e12fff15 	bx	r5
+ c00017c:	e12fff15 	bx	r5
 
-0c000168 <stop>:
+0c000180 <stop>:
 
 stop:
         B       stop        /*  end of program */
- c000168:	eafffffe 	b	c000168 <stop>
- c00016c:	0c000a80 	.word	0x0c000a80
- c000170:	0c0009e0 	.word	0x0c0009e0
+ c000180:	eafffffe 	b	c000180 <stop>
+ c000184:	0c000b00 	.word	0x0c000b00
+ c000188:	0c000ac4 	.word	0x0c000ac4
 
-0c000174 <celda_leer_valor>:
+0c00018c <celda_leer_valor>:
 
 /* *****************************************************************************
  * extrae el valor almacenado en los 16 bits de una celda */
 static inline uint8_t
 celda_leer_valor(CELDA celda)
 {
- c000174:	e1a0c00d 	mov	ip, sp
- c000178:	e92dd800 	push	{fp, ip, lr, pc}
- c00017c:	e24cb004 	sub	fp, ip, #4
- c000180:	e24dd008 	sub	sp, sp, #8
- c000184:	e1a03000 	mov	r3, r0
- c000188:	e14b30be 	strh	r3, [fp, #-14]
+ c00018c:	e1a0c00d 	mov	ip, sp
+ c000190:	e92dd800 	push	{fp, ip, lr, pc}
+ c000194:	e24cb004 	sub	fp, ip, #4
+ c000198:	e24dd008 	sub	sp, sp, #8
+ c00019c:	e1a03000 	mov	r3, r0
+ c0001a0:	e14b30be 	strh	r3, [fp, #-14]
     return (celda & 0x000F);
- c00018c:	e15b30be 	ldrh	r3, [fp, #-14]
- c000190:	e20330ff 	and	r3, r3, #255	; 0xff
- c000194:	e203300f 	and	r3, r3, #15
- c000198:	e20330ff 	and	r3, r3, #255	; 0xff
+ c0001a4:	e15b30be 	ldrh	r3, [fp, #-14]
+ c0001a8:	e20330ff 	and	r3, r3, #255	; 0xff
+ c0001ac:	e203300f 	and	r3, r3, #15
+ c0001b0:	e20330ff 	and	r3, r3, #255	; 0xff
 }
- c00019c:	e1a00003 	mov	r0, r3
- c0001a0:	e24bd00c 	sub	sp, fp, #12
- c0001a4:	e89d6800 	ldm	sp, {fp, sp, lr}
- c0001a8:	e12fff1e 	bx	lr
+ c0001b4:	e1a00003 	mov	r0, r3
+ c0001b8:	e24bd00c 	sub	sp, fp, #12
+ c0001bc:	e89d6800 	ldm	sp, {fp, sp, lr}
+ c0001c0:	e12fff1e 	bx	lr
 
-0c0001ac <activar_error>:
+0c0001c4 <activar_error>:
 
 static inline void
 activar_error(CELDA celda)
 {
- c0001ac:	e1a0c00d 	mov	ip, sp
- c0001b0:	e92dd800 	push	{fp, ip, lr, pc}
- c0001b4:	e24cb004 	sub	fp, ip, #4
- c0001b8:	e24dd008 	sub	sp, sp, #8
- c0001bc:	e1a03000 	mov	r3, r0
- c0001c0:	e14b30be 	strh	r3, [fp, #-14]
+ c0001c4:	e1a0c00d 	mov	ip, sp
+ c0001c8:	e92dd800 	push	{fp, ip, lr, pc}
+ c0001cc:	e24cb004 	sub	fp, ip, #4
+ c0001d0:	e24dd008 	sub	sp, sp, #8
+ c0001d4:	e1a03000 	mov	r3, r0
+ c0001d8:	e14b30be 	strh	r3, [fp, #-14]
 	celda = celda |= 0x4000;
- c0001c4:	e15b30be 	ldrh	r3, [fp, #-14]
- c0001c8:	e3833901 	orr	r3, r3, #16384	; 0x4000
- c0001cc:	e14b30be 	strh	r3, [fp, #-14]
+ c0001dc:	e15b30be 	ldrh	r3, [fp, #-14]
+ c0001e0:	e3833901 	orr	r3, r3, #16384	; 0x4000
+ c0001e4:	e14b30be 	strh	r3, [fp, #-14]
 }
- c0001d0:	e24bd00c 	sub	sp, fp, #12
- c0001d4:	e89d6800 	ldm	sp, {fp, sp, lr}
- c0001d8:	e12fff1e 	bx	lr
+ c0001e8:	e24bd00c 	sub	sp, fp, #12
+ c0001ec:	e89d6800 	ldm	sp, {fp, sp, lr}
+ c0001f0:	e12fff1e 	bx	lr
 
-0c0001dc <sudoku_candidatos_propagar_c>:
+0c0001f4 <sudoku_candidatos_propagar_c>:
 
 /* *****************************************************************************
  * FUNCIONALIDAD: propagar el valor de una determinada celda para actualizar las listas de candidatos en su fila, columna y region */
 void
 sudoku_candidatos_propagar_c(CELDA cuadricula[NUM_FILAS][NUM_COLUMNAS], int fila, int columna, uint8_t valor)
 {
- c0001dc:	e1a0c00d 	mov	ip, sp
- c0001e0:	e92dd800 	push	{fp, ip, lr, pc}
- c0001e4:	e24cb004 	sub	fp, ip, #4
- c0001e8:	e24dd028 	sub	sp, sp, #40	; 0x28
- c0001ec:	e50b0028 	str	r0, [fp, #-40]	; 0xffffffd8
- c0001f0:	e50b102c 	str	r1, [fp, #-44]	; 0xffffffd4
- c0001f4:	e50b2030 	str	r2, [fp, #-48]	; 0xffffffd0
- c0001f8:	e54b3031 	strb	r3, [fp, #-49]	; 0xffffffcf
+ c0001f4:	e1a0c00d 	mov	ip, sp
+ c0001f8:	e92dd800 	push	{fp, ip, lr, pc}
+ c0001fc:	e24cb004 	sub	fp, ip, #4
+ c000200:	e24dd028 	sub	sp, sp, #40	; 0x28
+ c000204:	e50b0028 	str	r0, [fp, #-40]	; 0xffffffd8
+ c000208:	e50b102c 	str	r1, [fp, #-44]	; 0xffffffd4
+ c00020c:	e50b2030 	str	r2, [fp, #-48]	; 0xffffffd0
+ c000210:	e54b3031 	strb	r3, [fp, #-49]	; 0xffffffcf
 	int displace = 3 + (int)valor;	// Desplazamiento necesario para situar el bit en la posición del candidato correspondiente al valor
- c0001fc:	e55b3031 	ldrb	r3, [fp, #-49]	; 0xffffffcf
- c000200:	e2833003 	add	r3, r3, #3
- c000204:	e50b301c 	str	r3, [fp, #-28]	; 0xffffffe4
+ c000214:	e55b3031 	ldrb	r3, [fp, #-49]	; 0xffffffcf
+ c000218:	e2833003 	add	r3, r3, #3
+ c00021c:	e50b301c 	str	r3, [fp, #-28]	; 0xffffffe4
 
     /* recorrer cada columna descartando el valor en la lista de candidatos */
     int col = 0;
- c000208:	e3a03000 	mov	r3, #0
- c00020c:	e50b3010 	str	r3, [fp, #-16]
+ c000220:	e3a03000 	mov	r3, #0
+ c000224:	e50b3010 	str	r3, [fp, #-16]
     while(col < NUM_COLUMNAS - 7){
- c000210:	ea000021 	b	c00029c <sudoku_candidatos_propagar_c+0xc0>
+ c000228:	ea000021 	b	c0002b4 <sudoku_candidatos_propagar_c+0xc0>
     	cuadricula[fila][col] &= ~(1 << displace);	// Desactivar el candidato de la lista con una operación NAND
- c000214:	e51b302c 	ldr	r3, [fp, #-44]	; 0xffffffd4
- c000218:	e1a03283 	lsl	r3, r3, #5
- c00021c:	e51b2028 	ldr	r2, [fp, #-40]	; 0xffffffd8
- c000220:	e0821003 	add	r1, r2, r3
- c000224:	e51b302c 	ldr	r3, [fp, #-44]	; 0xffffffd4
- c000228:	e1a03283 	lsl	r3, r3, #5
- c00022c:	e51b2028 	ldr	r2, [fp, #-40]	; 0xffffffd8
- c000230:	e0822003 	add	r2, r2, r3
- c000234:	e51b3010 	ldr	r3, [fp, #-16]
- c000238:	e1a03083 	lsl	r3, r3, #1
- c00023c:	e0823003 	add	r3, r2, r3
- c000240:	e1d330b0 	ldrh	r3, [r3]
- c000244:	e1a03803 	lsl	r3, r3, #16
- c000248:	e1a02823 	lsr	r2, r3, #16
- c00024c:	e3a00001 	mov	r0, #1
- c000250:	e51b301c 	ldr	r3, [fp, #-28]	; 0xffffffe4
- c000254:	e1a03310 	lsl	r3, r0, r3
- c000258:	e1a03803 	lsl	r3, r3, #16
- c00025c:	e1a03823 	lsr	r3, r3, #16
- c000260:	e1e03003 	mvn	r3, r3
- c000264:	e1a03803 	lsl	r3, r3, #16
- c000268:	e1a03823 	lsr	r3, r3, #16
- c00026c:	e0023003 	and	r3, r2, r3
+ c00022c:	e51b302c 	ldr	r3, [fp, #-44]	; 0xffffffd4
+ c000230:	e1a03283 	lsl	r3, r3, #5
+ c000234:	e51b2028 	ldr	r2, [fp, #-40]	; 0xffffffd8
+ c000238:	e0821003 	add	r1, r2, r3
+ c00023c:	e51b302c 	ldr	r3, [fp, #-44]	; 0xffffffd4
+ c000240:	e1a03283 	lsl	r3, r3, #5
+ c000244:	e51b2028 	ldr	r2, [fp, #-40]	; 0xffffffd8
+ c000248:	e0822003 	add	r2, r2, r3
+ c00024c:	e51b3010 	ldr	r3, [fp, #-16]
+ c000250:	e1a03083 	lsl	r3, r3, #1
+ c000254:	e0823003 	add	r3, r2, r3
+ c000258:	e1d330b0 	ldrh	r3, [r3]
+ c00025c:	e1a03803 	lsl	r3, r3, #16
+ c000260:	e1a02823 	lsr	r2, r3, #16
+ c000264:	e3a00001 	mov	r0, #1
+ c000268:	e51b301c 	ldr	r3, [fp, #-28]	; 0xffffffe4
+ c00026c:	e1a03310 	lsl	r3, r0, r3
  c000270:	e1a03803 	lsl	r3, r3, #16
  c000274:	e1a03823 	lsr	r3, r3, #16
- c000278:	e1a03803 	lsl	r3, r3, #16
- c00027c:	e1a02823 	lsr	r2, r3, #16
- c000280:	e51b3010 	ldr	r3, [fp, #-16]
- c000284:	e1a03083 	lsl	r3, r3, #1
- c000288:	e0813003 	add	r3, r1, r3
- c00028c:	e1c320b0 	strh	r2, [r3]
+ c000278:	e1e03003 	mvn	r3, r3
+ c00027c:	e1a03803 	lsl	r3, r3, #16
+ c000280:	e1a03823 	lsr	r3, r3, #16
+ c000284:	e0023003 	and	r3, r2, r3
+ c000288:	e1a03803 	lsl	r3, r3, #16
+ c00028c:	e1a03823 	lsr	r3, r3, #16
+ c000290:	e1a03803 	lsl	r3, r3, #16
+ c000294:	e1a02823 	lsr	r2, r3, #16
+ c000298:	e51b3010 	ldr	r3, [fp, #-16]
+ c00029c:	e1a03083 	lsl	r3, r3, #1
+ c0002a0:	e0813003 	add	r3, r1, r3
+ c0002a4:	e1c320b0 	strh	r2, [r3]
     	col++;
- c000290:	e51b3010 	ldr	r3, [fp, #-16]
- c000294:	e2833001 	add	r3, r3, #1
- c000298:	e50b3010 	str	r3, [fp, #-16]
+ c0002a8:	e51b3010 	ldr	r3, [fp, #-16]
+ c0002ac:	e2833001 	add	r3, r3, #1
+ c0002b0:	e50b3010 	str	r3, [fp, #-16]
 {
 	int displace = 3 + (int)valor;	// Desplazamiento necesario para situar el bit en la posición del candidato correspondiente al valor
 
     /* recorrer cada columna descartando el valor en la lista de candidatos */
     int col = 0;
     while(col < NUM_COLUMNAS - 7){
- c00029c:	e51b3010 	ldr	r3, [fp, #-16]
- c0002a0:	e3530008 	cmp	r3, #8
- c0002a4:	daffffda 	ble	c000214 <sudoku_candidatos_propagar_c+0x38>
+ c0002b4:	e51b3010 	ldr	r3, [fp, #-16]
+ c0002b8:	e3530008 	cmp	r3, #8
+ c0002bc:	daffffda 	ble	c00022c <sudoku_candidatos_propagar_c+0x38>
     	cuadricula[fila][col] &= ~(1 << displace);	// Desactivar el candidato de la lista con una operación NAND
     	col++;
     }
 
     /* recorrer cada fila descartando el valor en la lista de candidatos */
     int row = 0;
- c0002a8:	e3a03000 	mov	r3, #0
- c0002ac:	e50b3014 	str	r3, [fp, #-20]	; 0xffffffec
+ c0002c0:	e3a03000 	mov	r3, #0
+ c0002c4:	e50b3014 	str	r3, [fp, #-20]	; 0xffffffec
     while(row < NUM_FILAS){
- c0002b0:	ea000021 	b	c00033c <sudoku_candidatos_propagar_c+0x160>
+ c0002c8:	ea000021 	b	c000354 <sudoku_candidatos_propagar_c+0x160>
     	cuadricula[row][columna] &= ~(1 << displace);
- c0002b4:	e51b3014 	ldr	r3, [fp, #-20]	; 0xffffffec
- c0002b8:	e1a03283 	lsl	r3, r3, #5
- c0002bc:	e51b2028 	ldr	r2, [fp, #-40]	; 0xffffffd8
- c0002c0:	e0821003 	add	r1, r2, r3
- c0002c4:	e51b3014 	ldr	r3, [fp, #-20]	; 0xffffffec
- c0002c8:	e1a03283 	lsl	r3, r3, #5
- c0002cc:	e51b2028 	ldr	r2, [fp, #-40]	; 0xffffffd8
- c0002d0:	e0822003 	add	r2, r2, r3
- c0002d4:	e51b3030 	ldr	r3, [fp, #-48]	; 0xffffffd0
- c0002d8:	e1a03083 	lsl	r3, r3, #1
- c0002dc:	e0823003 	add	r3, r2, r3
- c0002e0:	e1d330b0 	ldrh	r3, [r3]
- c0002e4:	e1a03803 	lsl	r3, r3, #16
- c0002e8:	e1a02823 	lsr	r2, r3, #16
- c0002ec:	e3a00001 	mov	r0, #1
- c0002f0:	e51b301c 	ldr	r3, [fp, #-28]	; 0xffffffe4
- c0002f4:	e1a03310 	lsl	r3, r0, r3
- c0002f8:	e1a03803 	lsl	r3, r3, #16
- c0002fc:	e1a03823 	lsr	r3, r3, #16
- c000300:	e1e03003 	mvn	r3, r3
- c000304:	e1a03803 	lsl	r3, r3, #16
- c000308:	e1a03823 	lsr	r3, r3, #16
- c00030c:	e0023003 	and	r3, r2, r3
+ c0002cc:	e51b3014 	ldr	r3, [fp, #-20]	; 0xffffffec
+ c0002d0:	e1a03283 	lsl	r3, r3, #5
+ c0002d4:	e51b2028 	ldr	r2, [fp, #-40]	; 0xffffffd8
+ c0002d8:	e0821003 	add	r1, r2, r3
+ c0002dc:	e51b3014 	ldr	r3, [fp, #-20]	; 0xffffffec
+ c0002e0:	e1a03283 	lsl	r3, r3, #5
+ c0002e4:	e51b2028 	ldr	r2, [fp, #-40]	; 0xffffffd8
+ c0002e8:	e0822003 	add	r2, r2, r3
+ c0002ec:	e51b3030 	ldr	r3, [fp, #-48]	; 0xffffffd0
+ c0002f0:	e1a03083 	lsl	r3, r3, #1
+ c0002f4:	e0823003 	add	r3, r2, r3
+ c0002f8:	e1d330b0 	ldrh	r3, [r3]
+ c0002fc:	e1a03803 	lsl	r3, r3, #16
+ c000300:	e1a02823 	lsr	r2, r3, #16
+ c000304:	e3a00001 	mov	r0, #1
+ c000308:	e51b301c 	ldr	r3, [fp, #-28]	; 0xffffffe4
+ c00030c:	e1a03310 	lsl	r3, r0, r3
  c000310:	e1a03803 	lsl	r3, r3, #16
  c000314:	e1a03823 	lsr	r3, r3, #16
- c000318:	e1a03803 	lsl	r3, r3, #16
- c00031c:	e1a02823 	lsr	r2, r3, #16
- c000320:	e51b3030 	ldr	r3, [fp, #-48]	; 0xffffffd0
- c000324:	e1a03083 	lsl	r3, r3, #1
- c000328:	e0813003 	add	r3, r1, r3
- c00032c:	e1c320b0 	strh	r2, [r3]
+ c000318:	e1e03003 	mvn	r3, r3
+ c00031c:	e1a03803 	lsl	r3, r3, #16
+ c000320:	e1a03823 	lsr	r3, r3, #16
+ c000324:	e0023003 	and	r3, r2, r3
+ c000328:	e1a03803 	lsl	r3, r3, #16
+ c00032c:	e1a03823 	lsr	r3, r3, #16
+ c000330:	e1a03803 	lsl	r3, r3, #16
+ c000334:	e1a02823 	lsr	r2, r3, #16
+ c000338:	e51b3030 	ldr	r3, [fp, #-48]	; 0xffffffd0
+ c00033c:	e1a03083 	lsl	r3, r3, #1
+ c000340:	e0813003 	add	r3, r1, r3
+ c000344:	e1c320b0 	strh	r2, [r3]
     	row++;
- c000330:	e51b3014 	ldr	r3, [fp, #-20]	; 0xffffffec
- c000334:	e2833001 	add	r3, r3, #1
- c000338:	e50b3014 	str	r3, [fp, #-20]	; 0xffffffec
+ c000348:	e51b3014 	ldr	r3, [fp, #-20]	; 0xffffffec
+ c00034c:	e2833001 	add	r3, r3, #1
+ c000350:	e50b3014 	str	r3, [fp, #-20]	; 0xffffffec
     	col++;
     }
 
     /* recorrer cada fila descartando el valor en la lista de candidatos */
     int row = 0;
     while(row < NUM_FILAS){
- c00033c:	e51b3014 	ldr	r3, [fp, #-20]	; 0xffffffec
- c000340:	e3530008 	cmp	r3, #8
- c000344:	daffffda 	ble	c0002b4 <sudoku_candidatos_propagar_c+0xd8>
+ c000354:	e51b3014 	ldr	r3, [fp, #-20]	; 0xffffffec
+ c000358:	e3530008 	cmp	r3, #8
+ c00035c:	daffffda 	ble	c0002cc <sudoku_candidatos_propagar_c+0xd8>
     	row++;
     }
 
 
     /*Calcular la posicion inicial para cada region 3x3 correspondiente*/
     int row_start = (fila / 3) * 3;
- c000348:	e51b302c 	ldr	r3, [fp, #-44]	; 0xffffffd4
- c00034c:	e59f211c 	ldr	r2, [pc, #284]	; c000470 <sudoku_candidatos_propagar_c+0x294>
- c000350:	e0c21293 	smull	r1, r2, r3, r2
- c000354:	e1a03fc3 	asr	r3, r3, #31
- c000358:	e0632002 	rsb	r2, r3, r2
- c00035c:	e1a03002 	mov	r3, r2
- c000360:	e1a03083 	lsl	r3, r3, #1
- c000364:	e0833002 	add	r3, r3, r2
- c000368:	e50b3020 	str	r3, [fp, #-32]	; 0xffffffe0
+ c000360:	e51b302c 	ldr	r3, [fp, #-44]	; 0xffffffd4
+ c000364:	e59f211c 	ldr	r2, [pc, #284]	; c000488 <sudoku_candidatos_propagar_c+0x294>
+ c000368:	e0c21293 	smull	r1, r2, r3, r2
+ c00036c:	e1a03fc3 	asr	r3, r3, #31
+ c000370:	e0632002 	rsb	r2, r3, r2
+ c000374:	e1a03002 	mov	r3, r2
+ c000378:	e1a03083 	lsl	r3, r3, #1
+ c00037c:	e0833002 	add	r3, r3, r2
+ c000380:	e50b3020 	str	r3, [fp, #-32]	; 0xffffffe0
     int col_start = (columna / 3) * 3;
- c00036c:	e51b3030 	ldr	r3, [fp, #-48]	; 0xffffffd0
- c000370:	e59f20f8 	ldr	r2, [pc, #248]	; c000470 <sudoku_candidatos_propagar_c+0x294>
- c000374:	e0c21293 	smull	r1, r2, r3, r2
- c000378:	e1a03fc3 	asr	r3, r3, #31
- c00037c:	e0632002 	rsb	r2, r3, r2
- c000380:	e1a03002 	mov	r3, r2
- c000384:	e1a03083 	lsl	r3, r3, #1
- c000388:	e0833002 	add	r3, r3, r2
- c00038c:	e50b3024 	str	r3, [fp, #-36]	; 0xffffffdc
+ c000384:	e51b3030 	ldr	r3, [fp, #-48]	; 0xffffffd0
+ c000388:	e59f20f8 	ldr	r2, [pc, #248]	; c000488 <sudoku_candidatos_propagar_c+0x294>
+ c00038c:	e0c21293 	smull	r1, r2, r3, r2
+ c000390:	e1a03fc3 	asr	r3, r3, #31
+ c000394:	e0632002 	rsb	r2, r3, r2
+ c000398:	e1a03002 	mov	r3, r2
+ c00039c:	e1a03083 	lsl	r3, r3, #1
+ c0003a0:	e0833002 	add	r3, r3, r2
+ c0003a4:	e50b3024 	str	r3, [fp, #-36]	; 0xffffffdc
 
     /* recorrer region descartando el valor en la lista de candidatos */
     row = row_start;
- c000390:	e51b3020 	ldr	r3, [fp, #-32]	; 0xffffffe0
- c000394:	e50b3014 	str	r3, [fp, #-20]	; 0xffffffec
+ c0003a8:	e51b3020 	ldr	r3, [fp, #-32]	; 0xffffffe0
+ c0003ac:	e50b3014 	str	r3, [fp, #-20]	; 0xffffffec
     while(row < (row_start + 3)){
- c000398:	ea00002c 	b	c000450 <sudoku_candidatos_propagar_c+0x274>
+ c0003b0:	ea00002c 	b	c000468 <sudoku_candidatos_propagar_c+0x274>
     	int col = col_start;
- c00039c:	e51b3024 	ldr	r3, [fp, #-36]	; 0xffffffdc
- c0003a0:	e50b3018 	str	r3, [fp, #-24]	; 0xffffffe8
+ c0003b4:	e51b3024 	ldr	r3, [fp, #-36]	; 0xffffffdc
+ c0003b8:	e50b3018 	str	r3, [fp, #-24]	; 0xffffffe8
     	while(col < (col_start + 3)){
- c0003a4:	ea000021 	b	c000430 <sudoku_candidatos_propagar_c+0x254>
+ c0003bc:	ea000021 	b	c000448 <sudoku_candidatos_propagar_c+0x254>
     		cuadricula[row][col] &= ~(1 << displace);
- c0003a8:	e51b3014 	ldr	r3, [fp, #-20]	; 0xffffffec
- c0003ac:	e1a03283 	lsl	r3, r3, #5
- c0003b0:	e51b2028 	ldr	r2, [fp, #-40]	; 0xffffffd8
- c0003b4:	e0821003 	add	r1, r2, r3
- c0003b8:	e51b3014 	ldr	r3, [fp, #-20]	; 0xffffffec
- c0003bc:	e1a03283 	lsl	r3, r3, #5
- c0003c0:	e51b2028 	ldr	r2, [fp, #-40]	; 0xffffffd8
- c0003c4:	e0822003 	add	r2, r2, r3
- c0003c8:	e51b3018 	ldr	r3, [fp, #-24]	; 0xffffffe8
- c0003cc:	e1a03083 	lsl	r3, r3, #1
- c0003d0:	e0823003 	add	r3, r2, r3
- c0003d4:	e1d330b0 	ldrh	r3, [r3]
- c0003d8:	e1a03803 	lsl	r3, r3, #16
- c0003dc:	e1a02823 	lsr	r2, r3, #16
- c0003e0:	e3a00001 	mov	r0, #1
- c0003e4:	e51b301c 	ldr	r3, [fp, #-28]	; 0xffffffe4
- c0003e8:	e1a03310 	lsl	r3, r0, r3
- c0003ec:	e1a03803 	lsl	r3, r3, #16
- c0003f0:	e1a03823 	lsr	r3, r3, #16
- c0003f4:	e1e03003 	mvn	r3, r3
- c0003f8:	e1a03803 	lsl	r3, r3, #16
- c0003fc:	e1a03823 	lsr	r3, r3, #16
- c000400:	e0023003 	and	r3, r2, r3
+ c0003c0:	e51b3014 	ldr	r3, [fp, #-20]	; 0xffffffec
+ c0003c4:	e1a03283 	lsl	r3, r3, #5
+ c0003c8:	e51b2028 	ldr	r2, [fp, #-40]	; 0xffffffd8
+ c0003cc:	e0821003 	add	r1, r2, r3
+ c0003d0:	e51b3014 	ldr	r3, [fp, #-20]	; 0xffffffec
+ c0003d4:	e1a03283 	lsl	r3, r3, #5
+ c0003d8:	e51b2028 	ldr	r2, [fp, #-40]	; 0xffffffd8
+ c0003dc:	e0822003 	add	r2, r2, r3
+ c0003e0:	e51b3018 	ldr	r3, [fp, #-24]	; 0xffffffe8
+ c0003e4:	e1a03083 	lsl	r3, r3, #1
+ c0003e8:	e0823003 	add	r3, r2, r3
+ c0003ec:	e1d330b0 	ldrh	r3, [r3]
+ c0003f0:	e1a03803 	lsl	r3, r3, #16
+ c0003f4:	e1a02823 	lsr	r2, r3, #16
+ c0003f8:	e3a00001 	mov	r0, #1
+ c0003fc:	e51b301c 	ldr	r3, [fp, #-28]	; 0xffffffe4
+ c000400:	e1a03310 	lsl	r3, r0, r3
  c000404:	e1a03803 	lsl	r3, r3, #16
  c000408:	e1a03823 	lsr	r3, r3, #16
- c00040c:	e1a03803 	lsl	r3, r3, #16
- c000410:	e1a02823 	lsr	r2, r3, #16
- c000414:	e51b3018 	ldr	r3, [fp, #-24]	; 0xffffffe8
- c000418:	e1a03083 	lsl	r3, r3, #1
- c00041c:	e0813003 	add	r3, r1, r3
- c000420:	e1c320b0 	strh	r2, [r3]
+ c00040c:	e1e03003 	mvn	r3, r3
+ c000410:	e1a03803 	lsl	r3, r3, #16
+ c000414:	e1a03823 	lsr	r3, r3, #16
+ c000418:	e0023003 	and	r3, r2, r3
+ c00041c:	e1a03803 	lsl	r3, r3, #16
+ c000420:	e1a03823 	lsr	r3, r3, #16
+ c000424:	e1a03803 	lsl	r3, r3, #16
+ c000428:	e1a02823 	lsr	r2, r3, #16
+ c00042c:	e51b3018 	ldr	r3, [fp, #-24]	; 0xffffffe8
+ c000430:	e1a03083 	lsl	r3, r3, #1
+ c000434:	e0813003 	add	r3, r1, r3
+ c000438:	e1c320b0 	strh	r2, [r3]
     		col++;
- c000424:	e51b3018 	ldr	r3, [fp, #-24]	; 0xffffffe8
- c000428:	e2833001 	add	r3, r3, #1
- c00042c:	e50b3018 	str	r3, [fp, #-24]	; 0xffffffe8
+ c00043c:	e51b3018 	ldr	r3, [fp, #-24]	; 0xffffffe8
+ c000440:	e2833001 	add	r3, r3, #1
+ c000444:	e50b3018 	str	r3, [fp, #-24]	; 0xffffffe8
 
     /* recorrer region descartando el valor en la lista de candidatos */
     row = row_start;
     while(row < (row_start + 3)){
     	int col = col_start;
     	while(col < (col_start + 3)){
- c000430:	e51b3024 	ldr	r3, [fp, #-36]	; 0xffffffdc
- c000434:	e2832003 	add	r2, r3, #3
- c000438:	e51b3018 	ldr	r3, [fp, #-24]	; 0xffffffe8
- c00043c:	e1520003 	cmp	r2, r3
- c000440:	caffffd8 	bgt	c0003a8 <sudoku_candidatos_propagar_c+0x1cc>
+ c000448:	e51b3024 	ldr	r3, [fp, #-36]	; 0xffffffdc
+ c00044c:	e2832003 	add	r2, r3, #3
+ c000450:	e51b3018 	ldr	r3, [fp, #-24]	; 0xffffffe8
+ c000454:	e1520003 	cmp	r2, r3
+ c000458:	caffffd8 	bgt	c0003c0 <sudoku_candidatos_propagar_c+0x1cc>
     		cuadricula[row][col] &= ~(1 << displace);
     		col++;
     	}
     	row++;
- c000444:	e51b3014 	ldr	r3, [fp, #-20]	; 0xffffffec
- c000448:	e2833001 	add	r3, r3, #1
- c00044c:	e50b3014 	str	r3, [fp, #-20]	; 0xffffffec
+ c00045c:	e51b3014 	ldr	r3, [fp, #-20]	; 0xffffffec
+ c000460:	e2833001 	add	r3, r3, #1
+ c000464:	e50b3014 	str	r3, [fp, #-20]	; 0xffffffec
     int row_start = (fila / 3) * 3;
     int col_start = (columna / 3) * 3;
 
     /* recorrer region descartando el valor en la lista de candidatos */
     row = row_start;
     while(row < (row_start + 3)){
- c000450:	e51b3020 	ldr	r3, [fp, #-32]	; 0xffffffe0
- c000454:	e2832003 	add	r2, r3, #3
- c000458:	e51b3014 	ldr	r3, [fp, #-20]	; 0xffffffec
- c00045c:	e1520003 	cmp	r2, r3
- c000460:	caffffcd 	bgt	c00039c <sudoku_candidatos_propagar_c+0x1c0>
+ c000468:	e51b3020 	ldr	r3, [fp, #-32]	; 0xffffffe0
+ c00046c:	e2832003 	add	r2, r3, #3
+ c000470:	e51b3014 	ldr	r3, [fp, #-20]	; 0xffffffec
+ c000474:	e1520003 	cmp	r2, r3
+ c000478:	caffffcd 	bgt	c0003b4 <sudoku_candidatos_propagar_c+0x1c0>
     		cuadricula[row][col] &= ~(1 << displace);
     		col++;
     	}
     	row++;
     }
 }
- c000464:	e24bd00c 	sub	sp, fp, #12
- c000468:	e89d6800 	ldm	sp, {fp, sp, lr}
- c00046c:	e12fff1e 	bx	lr
- c000470:	55555556 	.word	0x55555556
+ c00047c:	e24bd00c 	sub	sp, fp, #12
+ c000480:	e89d6800 	ldm	sp, {fp, sp, lr}
+ c000484:	e12fff1e 	bx	lr
+ c000488:	55555556 	.word	0x55555556
 
-0c000474 <init_candidatos>:
+0c00048c <init_candidatos>:
 
 // Recorrer la cuadricula inicializando los candidatos de las celdas sin valor inicial (PISTA)
 void
 init_candidatos(CELDA cuadricula[NUM_FILAS][NUM_COLUMNAS]){
- c000474:	e1a0c00d 	mov	ip, sp
- c000478:	e92dd800 	push	{fp, ip, lr, pc}
- c00047c:	e24cb004 	sub	fp, ip, #4
- c000480:	e24dd018 	sub	sp, sp, #24
- c000484:	e50b0020 	str	r0, [fp, #-32]	; 0xffffffe0
+ c00048c:	e1a0c00d 	mov	ip, sp
+ c000490:	e92dd800 	push	{fp, ip, lr, pc}
+ c000494:	e24cb004 	sub	fp, ip, #4
+ c000498:	e24dd018 	sub	sp, sp, #24
+ c00049c:	e50b0020 	str	r0, [fp, #-32]	; 0xffffffe0
 	int row=0;
- c000488:	e3a03000 	mov	r3, #0
- c00048c:	e50b3010 	str	r3, [fp, #-16]
+ c0004a0:	e3a03000 	mov	r3, #0
+ c0004a4:	e50b3010 	str	r3, [fp, #-16]
 	while(row < NUM_FILAS){
- c000490:	ea00002e 	b	c000550 <init_candidatos+0xdc>
+ c0004a8:	ea00002e 	b	c000568 <init_candidatos+0xdc>
 		int col=0;
- c000494:	e3a03000 	mov	r3, #0
- c000498:	e50b3014 	str	r3, [fp, #-20]	; 0xffffffec
+ c0004ac:	e3a03000 	mov	r3, #0
+ c0004b0:	e50b3014 	str	r3, [fp, #-20]	; 0xffffffec
 		while(col < NUM_COLUMNAS - 7){
- c00049c:	ea000025 	b	c000538 <init_candidatos+0xc4>
+ c0004b4:	ea000025 	b	c000550 <init_candidatos+0xc4>
 
 			uint8_t valor_actual = celda_leer_valor(cuadricula[row][col]);
- c0004a0:	e51b3010 	ldr	r3, [fp, #-16]
- c0004a4:	e1a03283 	lsl	r3, r3, #5
- c0004a8:	e51b2020 	ldr	r2, [fp, #-32]	; 0xffffffe0
- c0004ac:	e0822003 	add	r2, r2, r3
- c0004b0:	e51b3014 	ldr	r3, [fp, #-20]	; 0xffffffec
- c0004b4:	e1a03083 	lsl	r3, r3, #1
- c0004b8:	e0823003 	add	r3, r2, r3
- c0004bc:	e1d330b0 	ldrh	r3, [r3]
- c0004c0:	e1a00003 	mov	r0, r3
- c0004c4:	ebffff2a 	bl	c000174 <celda_leer_valor>
- c0004c8:	e1a03000 	mov	r3, r0
- c0004cc:	e54b3015 	strb	r3, [fp, #-21]	; 0xffffffeb
+ c0004b8:	e51b3010 	ldr	r3, [fp, #-16]
+ c0004bc:	e1a03283 	lsl	r3, r3, #5
+ c0004c0:	e51b2020 	ldr	r2, [fp, #-32]	; 0xffffffe0
+ c0004c4:	e0822003 	add	r2, r2, r3
+ c0004c8:	e51b3014 	ldr	r3, [fp, #-20]	; 0xffffffec
+ c0004cc:	e1a03083 	lsl	r3, r3, #1
+ c0004d0:	e0823003 	add	r3, r2, r3
+ c0004d4:	e1d330b0 	ldrh	r3, [r3]
+ c0004d8:	e1a00003 	mov	r0, r3
+ c0004dc:	ebffff2a 	bl	c00018c <celda_leer_valor>
+ c0004e0:	e1a03000 	mov	r3, r0
+ c0004e4:	e54b3015 	strb	r3, [fp, #-21]	; 0xffffffeb
 
 			if(valor_actual == 0){
- c0004d0:	e55b3015 	ldrb	r3, [fp, #-21]	; 0xffffffeb
- c0004d4:	e3530000 	cmp	r3, #0
- c0004d8:	1a000013 	bne	c00052c <init_candidatos+0xb8>
+ c0004e8:	e55b3015 	ldrb	r3, [fp, #-21]	; 0xffffffeb
+ c0004ec:	e3530000 	cmp	r3, #0
+ c0004f0:	1a000013 	bne	c000544 <init_candidatos+0xb8>
 				cuadricula[row][col] |= 0x1FF0;
- c0004dc:	e51b3010 	ldr	r3, [fp, #-16]
- c0004e0:	e1a03283 	lsl	r3, r3, #5
- c0004e4:	e51b2020 	ldr	r2, [fp, #-32]	; 0xffffffe0
- c0004e8:	e0821003 	add	r1, r2, r3
- c0004ec:	e51b3010 	ldr	r3, [fp, #-16]
- c0004f0:	e1a03283 	lsl	r3, r3, #5
- c0004f4:	e51b2020 	ldr	r2, [fp, #-32]	; 0xffffffe0
- c0004f8:	e0822003 	add	r2, r2, r3
- c0004fc:	e51b3014 	ldr	r3, [fp, #-20]	; 0xffffffec
- c000500:	e1a03083 	lsl	r3, r3, #1
- c000504:	e0823003 	add	r3, r2, r3
- c000508:	e1d330b0 	ldrh	r3, [r3]
- c00050c:	e3833d7f 	orr	r3, r3, #8128	; 0x1fc0
- c000510:	e3833030 	orr	r3, r3, #48	; 0x30
- c000514:	e1a03803 	lsl	r3, r3, #16
- c000518:	e1a02823 	lsr	r2, r3, #16
- c00051c:	e51b3014 	ldr	r3, [fp, #-20]	; 0xffffffec
- c000520:	e1a03083 	lsl	r3, r3, #1
- c000524:	e0813003 	add	r3, r1, r3
- c000528:	e1c320b0 	strh	r2, [r3]
+ c0004f4:	e51b3010 	ldr	r3, [fp, #-16]
+ c0004f8:	e1a03283 	lsl	r3, r3, #5
+ c0004fc:	e51b2020 	ldr	r2, [fp, #-32]	; 0xffffffe0
+ c000500:	e0821003 	add	r1, r2, r3
+ c000504:	e51b3010 	ldr	r3, [fp, #-16]
+ c000508:	e1a03283 	lsl	r3, r3, #5
+ c00050c:	e51b2020 	ldr	r2, [fp, #-32]	; 0xffffffe0
+ c000510:	e0822003 	add	r2, r2, r3
+ c000514:	e51b3014 	ldr	r3, [fp, #-20]	; 0xffffffec
+ c000518:	e1a03083 	lsl	r3, r3, #1
+ c00051c:	e0823003 	add	r3, r2, r3
+ c000520:	e1d330b0 	ldrh	r3, [r3]
+ c000524:	e3833d7f 	orr	r3, r3, #8128	; 0x1fc0
+ c000528:	e3833030 	orr	r3, r3, #48	; 0x30
+ c00052c:	e1a03803 	lsl	r3, r3, #16
+ c000530:	e1a02823 	lsr	r2, r3, #16
+ c000534:	e51b3014 	ldr	r3, [fp, #-20]	; 0xffffffec
+ c000538:	e1a03083 	lsl	r3, r3, #1
+ c00053c:	e0813003 	add	r3, r1, r3
+ c000540:	e1c320b0 	strh	r2, [r3]
 			}
 			col++;
- c00052c:	e51b3014 	ldr	r3, [fp, #-20]	; 0xffffffec
- c000530:	e2833001 	add	r3, r3, #1
- c000534:	e50b3014 	str	r3, [fp, #-20]	; 0xffffffec
-void
-init_candidatos(CELDA cuadricula[NUM_FILAS][NUM_COLUMNAS]){
-	int row=0;
-	while(row < NUM_FILAS){
-		int col=0;
-		while(col < NUM_COLUMNAS - 7){
- c000538:	e51b3014 	ldr	r3, [fp, #-20]	; 0xffffffec
- c00053c:	e3530008 	cmp	r3, #8
- c000540:	daffffd6 	ble	c0004a0 <init_candidatos+0x2c>
-			if(valor_actual == 0){
-				cuadricula[row][col] |= 0x1FF0;
-			}
-			col++;
-		}
-		row++;
- c000544:	e51b3010 	ldr	r3, [fp, #-16]
+ c000544:	e51b3014 	ldr	r3, [fp, #-20]	; 0xffffffec
  c000548:	e2833001 	add	r3, r3, #1
- c00054c:	e50b3010 	str	r3, [fp, #-16]
+ c00054c:	e50b3014 	str	r3, [fp, #-20]	; 0xffffffec
+void
+init_candidatos(CELDA cuadricula[NUM_FILAS][NUM_COLUMNAS]){
+	int row=0;
+	while(row < NUM_FILAS){
+		int col=0;
+		while(col < NUM_COLUMNAS - 7){
+ c000550:	e51b3014 	ldr	r3, [fp, #-20]	; 0xffffffec
+ c000554:	e3530008 	cmp	r3, #8
+ c000558:	daffffd6 	ble	c0004b8 <init_candidatos+0x2c>
+			if(valor_actual == 0){
+				cuadricula[row][col] |= 0x1FF0;
+			}
+			col++;
+		}
+		row++;
+ c00055c:	e51b3010 	ldr	r3, [fp, #-16]
+ c000560:	e2833001 	add	r3, r3, #1
+ c000564:	e50b3010 	str	r3, [fp, #-16]
 
 // Recorrer la cuadricula inicializando los candidatos de las celdas sin valor inicial (PISTA)
 void
 init_candidatos(CELDA cuadricula[NUM_FILAS][NUM_COLUMNAS]){
 	int row=0;
 	while(row < NUM_FILAS){
- c000550:	e51b3010 	ldr	r3, [fp, #-16]
- c000554:	e3530008 	cmp	r3, #8
- c000558:	daffffcd 	ble	c000494 <init_candidatos+0x20>
+ c000568:	e51b3010 	ldr	r3, [fp, #-16]
+ c00056c:	e3530008 	cmp	r3, #8
+ c000570:	daffffcd 	ble	c0004ac <init_candidatos+0x20>
 			}
 			col++;
 		}
 		row++;
 	}
 }
- c00055c:	e24bd00c 	sub	sp, fp, #12
- c000560:	e89d6800 	ldm	sp, {fp, sp, lr}
- c000564:	e12fff1e 	bx	lr
+ c000574:	e24bd00c 	sub	sp, fp, #12
+ c000578:	e89d6800 	ldm	sp, {fp, sp, lr}
+ c00057c:	e12fff1e 	bx	lr
 
-0c000568 <propagar_if_value>:
+0c000580 <propagar_if_value>:
 
 // Recorrer la cuadricula aumentando la cantidad de celdas vacias (valor 0) y llamando a la funcion para propagar (si existe un valor)
 void
 propagar_if_value(CELDA cuadricula[NUM_FILAS][NUM_COLUMNAS], int *celdas_vacias){
- c000568:	e1a0c00d 	mov	ip, sp
- c00056c:	e92dd800 	push	{fp, ip, lr, pc}
- c000570:	e24cb004 	sub	fp, ip, #4
- c000574:	e24dd018 	sub	sp, sp, #24
- c000578:	e50b0020 	str	r0, [fp, #-32]	; 0xffffffe0
- c00057c:	e50b1024 	str	r1, [fp, #-36]	; 0xffffffdc
+ c000580:	e1a0c00d 	mov	ip, sp
+ c000584:	e92dd800 	push	{fp, ip, lr, pc}
+ c000588:	e24cb004 	sub	fp, ip, #4
+ c00058c:	e24dd018 	sub	sp, sp, #24
+ c000590:	e50b0020 	str	r0, [fp, #-32]	; 0xffffffe0
+ c000594:	e50b1024 	str	r1, [fp, #-36]	; 0xffffffdc
 	int row=0;
- c000580:	e3a03000 	mov	r3, #0
- c000584:	e50b3010 	str	r3, [fp, #-16]
+ c000598:	e3a03000 	mov	r3, #0
+ c00059c:	e50b3010 	str	r3, [fp, #-16]
 	while(row < NUM_FILAS){
- c000588:	ea000027 	b	c00062c <propagar_if_value+0xc4>
+ c0005a0:	ea000025 	b	c00063c <propagar_if_value+0xbc>
 		int col=0;
- c00058c:	e3a03000 	mov	r3, #0
- c000590:	e50b3014 	str	r3, [fp, #-20]	; 0xffffffec
+ c0005a4:	e3a03000 	mov	r3, #0
+ c0005a8:	e50b3014 	str	r3, [fp, #-20]	; 0xffffffec
 		while(col < NUM_COLUMNAS - 7){
- c000594:	ea00001e 	b	c000614 <propagar_if_value+0xac>
+ c0005ac:	ea00001c 	b	c000624 <propagar_if_value+0xa4>
 			uint8_t valor_actual = celda_leer_valor(cuadricula[row][col]);
- c000598:	e51b3010 	ldr	r3, [fp, #-16]
- c00059c:	e1a03283 	lsl	r3, r3, #5
- c0005a0:	e51b2020 	ldr	r2, [fp, #-32]	; 0xffffffe0
- c0005a4:	e0822003 	add	r2, r2, r3
- c0005a8:	e51b3014 	ldr	r3, [fp, #-20]	; 0xffffffec
- c0005ac:	e1a03083 	lsl	r3, r3, #1
- c0005b0:	e0823003 	add	r3, r2, r3
- c0005b4:	e1d330b0 	ldrh	r3, [r3]
- c0005b8:	e1a00003 	mov	r0, r3
- c0005bc:	ebfffeec 	bl	c000174 <celda_leer_valor>
- c0005c0:	e1a03000 	mov	r3, r0
- c0005c4:	e54b3015 	strb	r3, [fp, #-21]	; 0xffffffeb
+ c0005b0:	e51b3010 	ldr	r3, [fp, #-16]
+ c0005b4:	e1a03283 	lsl	r3, r3, #5
+ c0005b8:	e51b2020 	ldr	r2, [fp, #-32]	; 0xffffffe0
+ c0005bc:	e0822003 	add	r2, r2, r3
+ c0005c0:	e51b3014 	ldr	r3, [fp, #-20]	; 0xffffffec
+ c0005c4:	e1a03083 	lsl	r3, r3, #1
+ c0005c8:	e0823003 	add	r3, r2, r3
+ c0005cc:	e1d330b0 	ldrh	r3, [r3]
+ c0005d0:	e1a00003 	mov	r0, r3
+ c0005d4:	ebfffeec 	bl	c00018c <celda_leer_valor>
+ c0005d8:	e1a03000 	mov	r3, r0
+ c0005dc:	e54b3015 	strb	r3, [fp, #-21]	; 0xffffffeb
 			if(valor_actual == 0x0000){
- c0005c8:	e55b3015 	ldrb	r3, [fp, #-21]	; 0xffffffeb
- c0005cc:	e3530000 	cmp	r3, #0
- c0005d0:	1a000005 	bne	c0005ec <propagar_if_value+0x84>
+ c0005e0:	e55b3015 	ldrb	r3, [fp, #-21]	; 0xffffffeb
+ c0005e4:	e3530000 	cmp	r3, #0
+ c0005e8:	1a000005 	bne	c000604 <propagar_if_value+0x84>
 				(*celdas_vacias)++;
- c0005d4:	e51b3024 	ldr	r3, [fp, #-36]	; 0xffffffdc
- c0005d8:	e5933000 	ldr	r3, [r3]
- c0005dc:	e2832001 	add	r2, r3, #1
- c0005e0:	e51b3024 	ldr	r3, [fp, #-36]	; 0xffffffdc
- c0005e4:	e5832000 	str	r2, [r3]
- c0005e8:	ea000006 	b	c000608 <propagar_if_value+0xa0>
+ c0005ec:	e51b3024 	ldr	r3, [fp, #-36]	; 0xffffffdc
+ c0005f0:	e5933000 	ldr	r3, [r3]
+ c0005f4:	e2832001 	add	r2, r3, #1
+ c0005f8:	e51b3024 	ldr	r3, [fp, #-36]	; 0xffffffdc
+ c0005fc:	e5832000 	str	r2, [r3]
+ c000600:	ea000004 	b	c000618 <propagar_if_value+0x98>
 			} else {
-				sudoku_candidatos_propagar_arm(cuadricula, row, col, valor_actual);
- c0005ec:	e51b3010 	ldr	r3, [fp, #-16]
- c0005f0:	e20310ff 	and	r1, r3, #255	; 0xff
- c0005f4:	e51b3014 	ldr	r3, [fp, #-20]	; 0xffffffec
- c0005f8:	e20320ff 	and	r2, r3, #255	; 0xff
- c0005fc:	e55b3015 	ldrb	r3, [fp, #-21]	; 0xffffffeb
- c000600:	e51b0020 	ldr	r0, [fp, #-32]	; 0xffffffe0
- c000604:	ebfffe7d 	bl	c000000 <sudoku_candidatos_propagar_arm>
+				sudoku_candidatos_propagar_c(cuadricula, row, col, valor_actual);
+ c000604:	e55b3015 	ldrb	r3, [fp, #-21]	; 0xffffffeb
+ c000608:	e51b0020 	ldr	r0, [fp, #-32]	; 0xffffffe0
+ c00060c:	e51b1010 	ldr	r1, [fp, #-16]
+ c000610:	e51b2014 	ldr	r2, [fp, #-20]	; 0xffffffec
+ c000614:	ebfffef6 	bl	c0001f4 <sudoku_candidatos_propagar_c>
 			}
 			col++;
- c000608:	e51b3014 	ldr	r3, [fp, #-20]	; 0xffffffec
- c00060c:	e2833001 	add	r3, r3, #1
- c000610:	e50b3014 	str	r3, [fp, #-20]	; 0xffffffec
+ c000618:	e51b3014 	ldr	r3, [fp, #-20]	; 0xffffffec
+ c00061c:	e2833001 	add	r3, r3, #1
+ c000620:	e50b3014 	str	r3, [fp, #-20]	; 0xffffffec
 void
 propagar_if_value(CELDA cuadricula[NUM_FILAS][NUM_COLUMNAS], int *celdas_vacias){
 	int row=0;
 	while(row < NUM_FILAS){
 		int col=0;
 		while(col < NUM_COLUMNAS - 7){
- c000614:	e51b3014 	ldr	r3, [fp, #-20]	; 0xffffffec
- c000618:	e3530008 	cmp	r3, #8
- c00061c:	daffffdd 	ble	c000598 <propagar_if_value+0x30>
+ c000624:	e51b3014 	ldr	r3, [fp, #-20]	; 0xffffffec
+ c000628:	e3530008 	cmp	r3, #8
+ c00062c:	daffffdf 	ble	c0005b0 <propagar_if_value+0x30>
 			} else {
-				sudoku_candidatos_propagar_arm(cuadricula, row, col, valor_actual);
+				sudoku_candidatos_propagar_c(cuadricula, row, col, valor_actual);
 			}
 			col++;
 		}
 		row++;
- c000620:	e51b3010 	ldr	r3, [fp, #-16]
- c000624:	e2833001 	add	r3, r3, #1
- c000628:	e50b3010 	str	r3, [fp, #-16]
+ c000630:	e51b3010 	ldr	r3, [fp, #-16]
+ c000634:	e2833001 	add	r3, r3, #1
+ c000638:	e50b3010 	str	r3, [fp, #-16]
 
 // Recorrer la cuadricula aumentando la cantidad de celdas vacias (valor 0) y llamando a la funcion para propagar (si existe un valor)
 void
 propagar_if_value(CELDA cuadricula[NUM_FILAS][NUM_COLUMNAS], int *celdas_vacias){
 	int row=0;
 	while(row < NUM_FILAS){
- c00062c:	e51b3010 	ldr	r3, [fp, #-16]
- c000630:	e3530008 	cmp	r3, #8
- c000634:	daffffd4 	ble	c00058c <propagar_if_value+0x24>
+ c00063c:	e51b3010 	ldr	r3, [fp, #-16]
+ c000640:	e3530008 	cmp	r3, #8
+ c000644:	daffffd6 	ble	c0005a4 <propagar_if_value+0x24>
 			}
 			col++;
 		}
 		row++;
 	}
 }
- c000638:	e24bd00c 	sub	sp, fp, #12
- c00063c:	e89d6800 	ldm	sp, {fp, sp, lr}
- c000640:	e12fff1e 	bx	lr
+ c000648:	e24bd00c 	sub	sp, fp, #12
+ c00064c:	e89d6800 	ldm	sp, {fp, sp, lr}
+ c000650:	e12fff1e 	bx	lr
 
-0c000644 <sudoku_candidatos_init_c>:
+0c000654 <sudoku_candidatos_init_c>:
  * calcula todas las listas de candidatos (9x9)
  * necesario tras borrar o cambiar un valor (listas corrompidas)
  * retorna el numero de celdas vacias */
 static int
 sudoku_candidatos_init_c(CELDA cuadricula[NUM_FILAS][NUM_COLUMNAS])
 {
- c000644:	e1a0c00d 	mov	ip, sp
- c000648:	e92dd800 	push	{fp, ip, lr, pc}
- c00064c:	e24cb004 	sub	fp, ip, #4
- c000650:	e24dd010 	sub	sp, sp, #16
- c000654:	e50b0018 	str	r0, [fp, #-24]	; 0xffffffe8
+ c000654:	e1a0c00d 	mov	ip, sp
+ c000658:	e92dd800 	push	{fp, ip, lr, pc}
+ c00065c:	e24cb004 	sub	fp, ip, #4
+ c000660:	e24dd018 	sub	sp, sp, #24
+ c000664:	e50b0020 	str	r0, [fp, #-32]	; 0xffffffe0
  	int celdas_vacias = 0;
- c000658:	e3a03000 	mov	r3, #0
- c00065c:	e50b3010 	str	r3, [fp, #-16]
+ c000668:	e3a03000 	mov	r3, #0
+ c00066c:	e50b3018 	str	r3, [fp, #-24]	; 0xffffffe8
+ 	int version_ejecucion = 1;
+ c000670:	e3a03001 	mov	r3, #1
+ c000674:	e50b3010 	str	r3, [fp, #-16]
 	/*TODO: inicializa lista de candidatos */
     init_candidatos(cuadricula);
- c000660:	e51b0018 	ldr	r0, [fp, #-24]	; 0xffffffe8
- c000664:	ebffff82 	bl	c000474 <init_candidatos>
+ c000678:	e51b0020 	ldr	r0, [fp, #-32]	; 0xffffffe0
+ c00067c:	ebffff82 	bl	c00048c <init_candidatos>
 
     /* TODO: propagar si la celda tiene valor*/
     uint8_t valor_actual = celda_leer_valor(cuadricula[0][0]);
- c000668:	e51b3018 	ldr	r3, [fp, #-24]	; 0xffffffe8
- c00066c:	e1d330b0 	ldrh	r3, [r3]
- c000670:	e1a00003 	mov	r0, r3
- c000674:	ebfffebe 	bl	c000174 <celda_leer_valor>
- c000678:	e1a03000 	mov	r3, r0
- c00067c:	e54b3011 	strb	r3, [fp, #-17]	; 0xffffffef
-    sudoku_candidatos_propagar_arm(cuadricula, 0, 0, valor_actual);
- c000680:	e55b3011 	ldrb	r3, [fp, #-17]	; 0xffffffef
- c000684:	e51b0018 	ldr	r0, [fp, #-24]	; 0xffffffe8
- c000688:	e3a01000 	mov	r1, #0
- c00068c:	e3a02000 	mov	r2, #0
- c000690:	ebfffe5a 	bl	c000000 <sudoku_candidatos_propagar_arm>
-    //propagar_if_value(cuadricula, &celdas_vacias);
+ c000680:	e51b3020 	ldr	r3, [fp, #-32]	; 0xffffffe0
+ c000684:	e1d330b0 	ldrh	r3, [r3]
+ c000688:	e1a00003 	mov	r0, r3
+ c00068c:	ebfffebe 	bl	c00018c <celda_leer_valor>
+ c000690:	e1a03000 	mov	r3, r0
+ c000694:	e54b3011 	strb	r3, [fp, #-17]	; 0xffffffef
+
+    switch (version_ejecucion) {
+ c000698:	e51b3010 	ldr	r3, [fp, #-16]
+ c00069c:	e3530002 	cmp	r3, #2
+ c0006a0:	0a000008 	beq	c0006c8 <sudoku_candidatos_init_c+0x74>
+ c0006a4:	e3530003 	cmp	r3, #3
+ c0006a8:	0a00000e 	beq	c0006e8 <sudoku_candidatos_init_c+0x94>
+ c0006ac:	e3530001 	cmp	r3, #1
+ c0006b0:	1a00000e 	bne	c0006f0 <sudoku_candidatos_init_c+0x9c>
+    	case 1:
+    		propagar_if_value(cuadricula, &celdas_vacias);
+ c0006b4:	e24b3018 	sub	r3, fp, #24
+ c0006b8:	e51b0020 	ldr	r0, [fp, #-32]	; 0xffffffe0
+ c0006bc:	e1a01003 	mov	r1, r3
+ c0006c0:	ebffffae 	bl	c000580 <propagar_if_value>
+            break;
+ c0006c4:	ea00000a 	b	c0006f4 <sudoku_candidatos_init_c+0xa0>
+    	case 2:
+    		celdas_vacias = sudoku_candidatos_propagar_arm(cuadricula, 0, 0, valor_actual);
+ c0006c8:	e55b3011 	ldrb	r3, [fp, #-17]	; 0xffffffef
+ c0006cc:	e51b0020 	ldr	r0, [fp, #-32]	; 0xffffffe0
+ c0006d0:	e3a01000 	mov	r1, #0
+ c0006d4:	e3a02000 	mov	r2, #0
+ c0006d8:	ebfffe48 	bl	c000000 <sudoku_candidatos_propagar_arm>
+ c0006dc:	e1a03000 	mov	r3, r0
+ c0006e0:	e50b3018 	str	r3, [fp, #-24]	; 0xffffffe8
+            break;
+ c0006e4:	ea000002 	b	c0006f4 <sudoku_candidatos_init_c+0xa0>
+    	case 3:
+    		//celdas_vacias = sudoku_candidatos_propagar_thumb(cuadricula, 0, 0);
+            break;
+ c0006e8:	e1a00000 	nop			; (mov r0, r0)
+ c0006ec:	ea000000 	b	c0006f4 <sudoku_candidatos_init_c+0xa0>
+    	default:
+    		//Versión de ejecución no válida
+            break;
+ c0006f0:	e1a00000 	nop			; (mov r0, r0)
+    }
 
     return celdas_vacias;
- c000694:	e51b3010 	ldr	r3, [fp, #-16]
+ c0006f4:	e51b3018 	ldr	r3, [fp, #-24]	; 0xffffffe8
 }
- c000698:	e1a00003 	mov	r0, r3
- c00069c:	e24bd00c 	sub	sp, fp, #12
- c0006a0:	e89d6800 	ldm	sp, {fp, sp, lr}
- c0006a4:	e12fff1e 	bx	lr
+ c0006f8:	e1a00003 	mov	r0, r3
+ c0006fc:	e24bd00c 	sub	sp, fp, #12
+ c000700:	e89d6800 	ldm	sp, {fp, sp, lr}
+ c000704:	e12fff1e 	bx	lr
 
-0c0006a8 <cuadricula_candidatos_verificar>:
+0c000708 <cuadricula_candidatos_verificar>:
 
 
 static void
 cuadricula_candidatos_verificar(CELDA cuadricula[NUM_FILAS][NUM_COLUMNAS],int row, int col, int *errors){
- c0006a8:	e1a0c00d 	mov	ip, sp
- c0006ac:	e92dd800 	push	{fp, ip, lr, pc}
- c0006b0:	e24cb004 	sub	fp, ip, #4
- c0006b4:	e24dd038 	sub	sp, sp, #56	; 0x38
- c0006b8:	e50b0038 	str	r0, [fp, #-56]	; 0xffffffc8
- c0006bc:	e50b103c 	str	r1, [fp, #-60]	; 0xffffffc4
- c0006c0:	e50b2040 	str	r2, [fp, #-64]	; 0xffffffc0
- c0006c4:	e50b3044 	str	r3, [fp, #-68]	; 0xffffffbc
+ c000708:	e1a0c00d 	mov	ip, sp
+ c00070c:	e92dd800 	push	{fp, ip, lr, pc}
+ c000710:	e24cb004 	sub	fp, ip, #4
+ c000714:	e24dd038 	sub	sp, sp, #56	; 0x38
+ c000718:	e50b0038 	str	r0, [fp, #-56]	; 0xffffffc8
+ c00071c:	e50b103c 	str	r1, [fp, #-60]	; 0xffffffc4
+ c000720:	e50b2040 	str	r2, [fp, #-64]	; 0xffffffc0
+ c000724:	e50b3044 	str	r3, [fp, #-68]	; 0xffffffbc
 
 	uint8_t valor = celda_leer_valor(cuadricula[row][col]);
- c0006c8:	e51b303c 	ldr	r3, [fp, #-60]	; 0xffffffc4
- c0006cc:	e1a03283 	lsl	r3, r3, #5
- c0006d0:	e51b2038 	ldr	r2, [fp, #-56]	; 0xffffffc8
- c0006d4:	e0822003 	add	r2, r2, r3
- c0006d8:	e51b3040 	ldr	r3, [fp, #-64]	; 0xffffffc0
- c0006dc:	e1a03083 	lsl	r3, r3, #1
- c0006e0:	e0823003 	add	r3, r2, r3
- c0006e4:	e1d330b0 	ldrh	r3, [r3]
- c0006e8:	e1a00003 	mov	r0, r3
- c0006ec:	ebfffea0 	bl	c000174 <celda_leer_valor>
- c0006f0:	e1a03000 	mov	r3, r0
- c0006f4:	e54b3019 	strb	r3, [fp, #-25]	; 0xffffffe7
+ c000728:	e51b303c 	ldr	r3, [fp, #-60]	; 0xffffffc4
+ c00072c:	e1a03283 	lsl	r3, r3, #5
+ c000730:	e51b2038 	ldr	r2, [fp, #-56]	; 0xffffffc8
+ c000734:	e0822003 	add	r2, r2, r3
+ c000738:	e51b3040 	ldr	r3, [fp, #-64]	; 0xffffffc0
+ c00073c:	e1a03083 	lsl	r3, r3, #1
+ c000740:	e0823003 	add	r3, r2, r3
+ c000744:	e1d330b0 	ldrh	r3, [r3]
+ c000748:	e1a00003 	mov	r0, r3
+ c00074c:	ebfffe8e 	bl	c00018c <celda_leer_valor>
+ c000750:	e1a03000 	mov	r3, r0
+ c000754:	e54b3019 	strb	r3, [fp, #-25]	; 0xffffffe7
 
 	if(valor != 0x0000){
- c0006f8:	e55b3019 	ldrb	r3, [fp, #-25]	; 0xffffffe7
- c0006fc:	e3530000 	cmp	r3, #0
- c000700:	0a0000b2 	beq	c0009d0 <cuadricula_candidatos_verificar+0x328>
+ c000758:	e55b3019 	ldrb	r3, [fp, #-25]	; 0xffffffe7
+ c00075c:	e3530000 	cmp	r3, #0
+ c000760:	0a0000b2 	beq	c000a30 <cuadricula_candidatos_verificar+0x328>
 		int displace = 3 + (int)valor;
- c000704:	e55b3019 	ldrb	r3, [fp, #-25]	; 0xffffffe7
- c000708:	e2833003 	add	r3, r3, #3
- c00070c:	e50b3020 	str	r3, [fp, #-32]	; 0xffffffe0
+ c000764:	e55b3019 	ldrb	r3, [fp, #-25]	; 0xffffffe7
+ c000768:	e2833003 	add	r3, r3, #3
+ c00076c:	e50b3020 	str	r3, [fp, #-32]	; 0xffffffe0
 
 		//Verificar el valor en toda la fila (Horizontal)
 		int j = 0;
- c000710:	e3a03000 	mov	r3, #0
- c000714:	e50b3010 	str	r3, [fp, #-16]
+ c000770:	e3a03000 	mov	r3, #0
+ c000774:	e50b3010 	str	r3, [fp, #-16]
 		while( j < NUM_COLUMNAS - 7){
- c000718:	ea000028 	b	c0007c0 <cuadricula_candidatos_verificar+0x118>
+ c000778:	ea000028 	b	c000820 <cuadricula_candidatos_verificar+0x118>
 			uint8_t is_bit_set = cuadricula[row][j] & (1 << displace);
- c00071c:	e51b303c 	ldr	r3, [fp, #-60]	; 0xffffffc4
- c000720:	e1a03283 	lsl	r3, r3, #5
- c000724:	e51b2038 	ldr	r2, [fp, #-56]	; 0xffffffc8
- c000728:	e0822003 	add	r2, r2, r3
- c00072c:	e51b3010 	ldr	r3, [fp, #-16]
- c000730:	e1a03083 	lsl	r3, r3, #1
- c000734:	e0823003 	add	r3, r2, r3
- c000738:	e1d330b0 	ldrh	r3, [r3]
- c00073c:	e20320ff 	and	r2, r3, #255	; 0xff
- c000740:	e3a01001 	mov	r1, #1
- c000744:	e51b3020 	ldr	r3, [fp, #-32]	; 0xffffffe0
- c000748:	e1a03311 	lsl	r3, r1, r3
- c00074c:	e20330ff 	and	r3, r3, #255	; 0xff
- c000750:	e0023003 	and	r3, r2, r3
- c000754:	e20330ff 	and	r3, r3, #255	; 0xff
- c000758:	e54b3021 	strb	r3, [fp, #-33]	; 0xffffffdf
+ c00077c:	e51b303c 	ldr	r3, [fp, #-60]	; 0xffffffc4
+ c000780:	e1a03283 	lsl	r3, r3, #5
+ c000784:	e51b2038 	ldr	r2, [fp, #-56]	; 0xffffffc8
+ c000788:	e0822003 	add	r2, r2, r3
+ c00078c:	e51b3010 	ldr	r3, [fp, #-16]
+ c000790:	e1a03083 	lsl	r3, r3, #1
+ c000794:	e0823003 	add	r3, r2, r3
+ c000798:	e1d330b0 	ldrh	r3, [r3]
+ c00079c:	e20320ff 	and	r2, r3, #255	; 0xff
+ c0007a0:	e3a01001 	mov	r1, #1
+ c0007a4:	e51b3020 	ldr	r3, [fp, #-32]	; 0xffffffe0
+ c0007a8:	e1a03311 	lsl	r3, r1, r3
+ c0007ac:	e20330ff 	and	r3, r3, #255	; 0xff
+ c0007b0:	e0023003 	and	r3, r2, r3
+ c0007b4:	e20330ff 	and	r3, r3, #255	; 0xff
+ c0007b8:	e54b3021 	strb	r3, [fp, #-33]	; 0xffffffdf
 
 			if(j != col && is_bit_set){
- c00075c:	e51b2010 	ldr	r2, [fp, #-16]
- c000760:	e51b3040 	ldr	r3, [fp, #-64]	; 0xffffffc0
- c000764:	e1520003 	cmp	r2, r3
- c000768:	0a000011 	beq	c0007b4 <cuadricula_candidatos_verificar+0x10c>
- c00076c:	e55b3021 	ldrb	r3, [fp, #-33]	; 0xffffffdf
- c000770:	e3530000 	cmp	r3, #0
- c000774:	0a00000e 	beq	c0007b4 <cuadricula_candidatos_verificar+0x10c>
+ c0007bc:	e51b2010 	ldr	r2, [fp, #-16]
+ c0007c0:	e51b3040 	ldr	r3, [fp, #-64]	; 0xffffffc0
+ c0007c4:	e1520003 	cmp	r2, r3
+ c0007c8:	0a000011 	beq	c000814 <cuadricula_candidatos_verificar+0x10c>
+ c0007cc:	e55b3021 	ldrb	r3, [fp, #-33]	; 0xffffffdf
+ c0007d0:	e3530000 	cmp	r3, #0
+ c0007d4:	0a00000e 	beq	c000814 <cuadricula_candidatos_verificar+0x10c>
 				activar_error(cuadricula[row][j]);
- c000778:	e51b303c 	ldr	r3, [fp, #-60]	; 0xffffffc4
- c00077c:	e1a03283 	lsl	r3, r3, #5
- c000780:	e51b2038 	ldr	r2, [fp, #-56]	; 0xffffffc8
- c000784:	e0822003 	add	r2, r2, r3
- c000788:	e51b3010 	ldr	r3, [fp, #-16]
- c00078c:	e1a03083 	lsl	r3, r3, #1
- c000790:	e0823003 	add	r3, r2, r3
- c000794:	e1d330b0 	ldrh	r3, [r3]
- c000798:	e1a00003 	mov	r0, r3
- c00079c:	ebfffe82 	bl	c0001ac <activar_error>
-				(*errors)++;
- c0007a0:	e51b3044 	ldr	r3, [fp, #-68]	; 0xffffffbc
- c0007a4:	e5933000 	ldr	r3, [r3]
- c0007a8:	e2832001 	add	r2, r3, #1
- c0007ac:	e51b3044 	ldr	r3, [fp, #-68]	; 0xffffffbc
- c0007b0:	e5832000 	str	r2, [r3]
-			}
-			j++;
- c0007b4:	e51b3010 	ldr	r3, [fp, #-16]
- c0007b8:	e2833001 	add	r3, r3, #1
- c0007bc:	e50b3010 	str	r3, [fp, #-16]
-	if(valor != 0x0000){
-		int displace = 3 + (int)valor;
-
-		//Verificar el valor en toda la fila (Horizontal)
-		int j = 0;
-		while( j < NUM_COLUMNAS - 7){
- c0007c0:	e51b3010 	ldr	r3, [fp, #-16]
- c0007c4:	e3530008 	cmp	r3, #8
- c0007c8:	daffffd3 	ble	c00071c <cuadricula_candidatos_verificar+0x74>
-			}
-			j++;
-		}
-
-		//Verificar el valor en toda la columna (Vertical)
-		int i = 0;
- c0007cc:	e3a03000 	mov	r3, #0
- c0007d0:	e50b3014 	str	r3, [fp, #-20]	; 0xffffffec
-		while(i < NUM_FILAS){
- c0007d4:	ea000028 	b	c00087c <cuadricula_candidatos_verificar+0x1d4>
-			uint8_t is_bit_set = cuadricula[i][col] & (1 << displace);
- c0007d8:	e51b3014 	ldr	r3, [fp, #-20]	; 0xffffffec
+ c0007d8:	e51b303c 	ldr	r3, [fp, #-60]	; 0xffffffc4
  c0007dc:	e1a03283 	lsl	r3, r3, #5
  c0007e0:	e51b2038 	ldr	r2, [fp, #-56]	; 0xffffffc8
  c0007e4:	e0822003 	add	r2, r2, r3
- c0007e8:	e51b3040 	ldr	r3, [fp, #-64]	; 0xffffffc0
+ c0007e8:	e51b3010 	ldr	r3, [fp, #-16]
  c0007ec:	e1a03083 	lsl	r3, r3, #1
  c0007f0:	e0823003 	add	r3, r2, r3
  c0007f4:	e1d330b0 	ldrh	r3, [r3]
- c0007f8:	e20320ff 	and	r2, r3, #255	; 0xff
- c0007fc:	e3a01001 	mov	r1, #1
- c000800:	e51b3020 	ldr	r3, [fp, #-32]	; 0xffffffe0
- c000804:	e1a03311 	lsl	r3, r1, r3
- c000808:	e20330ff 	and	r3, r3, #255	; 0xff
- c00080c:	e0023003 	and	r3, r2, r3
- c000810:	e20330ff 	and	r3, r3, #255	; 0xff
- c000814:	e54b3022 	strb	r3, [fp, #-34]	; 0xffffffde
-			if(i != row && is_bit_set){
- c000818:	e51b2014 	ldr	r2, [fp, #-20]	; 0xffffffec
- c00081c:	e51b303c 	ldr	r3, [fp, #-60]	; 0xffffffc4
- c000820:	e1520003 	cmp	r2, r3
- c000824:	0a000011 	beq	c000870 <cuadricula_candidatos_verificar+0x1c8>
- c000828:	e55b3022 	ldrb	r3, [fp, #-34]	; 0xffffffde
- c00082c:	e3530000 	cmp	r3, #0
- c000830:	0a00000e 	beq	c000870 <cuadricula_candidatos_verificar+0x1c8>
-				activar_error(cuadricula[i][col]);
- c000834:	e51b3014 	ldr	r3, [fp, #-20]	; 0xffffffec
- c000838:	e1a03283 	lsl	r3, r3, #5
- c00083c:	e51b2038 	ldr	r2, [fp, #-56]	; 0xffffffc8
- c000840:	e0822003 	add	r2, r2, r3
- c000844:	e51b3040 	ldr	r3, [fp, #-64]	; 0xffffffc0
- c000848:	e1a03083 	lsl	r3, r3, #1
- c00084c:	e0823003 	add	r3, r2, r3
- c000850:	e1d330b0 	ldrh	r3, [r3]
- c000854:	e1a00003 	mov	r0, r3
- c000858:	ebfffe53 	bl	c0001ac <activar_error>
+ c0007f8:	e1a00003 	mov	r0, r3
+ c0007fc:	ebfffe70 	bl	c0001c4 <activar_error>
 				(*errors)++;
- c00085c:	e51b3044 	ldr	r3, [fp, #-68]	; 0xffffffbc
- c000860:	e5933000 	ldr	r3, [r3]
- c000864:	e2832001 	add	r2, r3, #1
- c000868:	e51b3044 	ldr	r3, [fp, #-68]	; 0xffffffbc
- c00086c:	e5832000 	str	r2, [r3]
+ c000800:	e51b3044 	ldr	r3, [fp, #-68]	; 0xffffffbc
+ c000804:	e5933000 	ldr	r3, [r3]
+ c000808:	e2832001 	add	r2, r3, #1
+ c00080c:	e51b3044 	ldr	r3, [fp, #-68]	; 0xffffffbc
+ c000810:	e5832000 	str	r2, [r3]
+			}
+			j++;
+ c000814:	e51b3010 	ldr	r3, [fp, #-16]
+ c000818:	e2833001 	add	r3, r3, #1
+ c00081c:	e50b3010 	str	r3, [fp, #-16]
+	if(valor != 0x0000){
+		int displace = 3 + (int)valor;
+
+		//Verificar el valor en toda la fila (Horizontal)
+		int j = 0;
+		while( j < NUM_COLUMNAS - 7){
+ c000820:	e51b3010 	ldr	r3, [fp, #-16]
+ c000824:	e3530008 	cmp	r3, #8
+ c000828:	daffffd3 	ble	c00077c <cuadricula_candidatos_verificar+0x74>
+			}
+			j++;
+		}
+
+		//Verificar el valor en toda la columna (Vertical)
+		int i = 0;
+ c00082c:	e3a03000 	mov	r3, #0
+ c000830:	e50b3014 	str	r3, [fp, #-20]	; 0xffffffec
+		while(i < NUM_FILAS){
+ c000834:	ea000028 	b	c0008dc <cuadricula_candidatos_verificar+0x1d4>
+			uint8_t is_bit_set = cuadricula[i][col] & (1 << displace);
+ c000838:	e51b3014 	ldr	r3, [fp, #-20]	; 0xffffffec
+ c00083c:	e1a03283 	lsl	r3, r3, #5
+ c000840:	e51b2038 	ldr	r2, [fp, #-56]	; 0xffffffc8
+ c000844:	e0822003 	add	r2, r2, r3
+ c000848:	e51b3040 	ldr	r3, [fp, #-64]	; 0xffffffc0
+ c00084c:	e1a03083 	lsl	r3, r3, #1
+ c000850:	e0823003 	add	r3, r2, r3
+ c000854:	e1d330b0 	ldrh	r3, [r3]
+ c000858:	e20320ff 	and	r2, r3, #255	; 0xff
+ c00085c:	e3a01001 	mov	r1, #1
+ c000860:	e51b3020 	ldr	r3, [fp, #-32]	; 0xffffffe0
+ c000864:	e1a03311 	lsl	r3, r1, r3
+ c000868:	e20330ff 	and	r3, r3, #255	; 0xff
+ c00086c:	e0023003 	and	r3, r2, r3
+ c000870:	e20330ff 	and	r3, r3, #255	; 0xff
+ c000874:	e54b3022 	strb	r3, [fp, #-34]	; 0xffffffde
+			if(i != row && is_bit_set){
+ c000878:	e51b2014 	ldr	r2, [fp, #-20]	; 0xffffffec
+ c00087c:	e51b303c 	ldr	r3, [fp, #-60]	; 0xffffffc4
+ c000880:	e1520003 	cmp	r2, r3
+ c000884:	0a000011 	beq	c0008d0 <cuadricula_candidatos_verificar+0x1c8>
+ c000888:	e55b3022 	ldrb	r3, [fp, #-34]	; 0xffffffde
+ c00088c:	e3530000 	cmp	r3, #0
+ c000890:	0a00000e 	beq	c0008d0 <cuadricula_candidatos_verificar+0x1c8>
+				activar_error(cuadricula[i][col]);
+ c000894:	e51b3014 	ldr	r3, [fp, #-20]	; 0xffffffec
+ c000898:	e1a03283 	lsl	r3, r3, #5
+ c00089c:	e51b2038 	ldr	r2, [fp, #-56]	; 0xffffffc8
+ c0008a0:	e0822003 	add	r2, r2, r3
+ c0008a4:	e51b3040 	ldr	r3, [fp, #-64]	; 0xffffffc0
+ c0008a8:	e1a03083 	lsl	r3, r3, #1
+ c0008ac:	e0823003 	add	r3, r2, r3
+ c0008b0:	e1d330b0 	ldrh	r3, [r3]
+ c0008b4:	e1a00003 	mov	r0, r3
+ c0008b8:	ebfffe41 	bl	c0001c4 <activar_error>
+				(*errors)++;
+ c0008bc:	e51b3044 	ldr	r3, [fp, #-68]	; 0xffffffbc
+ c0008c0:	e5933000 	ldr	r3, [r3]
+ c0008c4:	e2832001 	add	r2, r3, #1
+ c0008c8:	e51b3044 	ldr	r3, [fp, #-68]	; 0xffffffbc
+ c0008cc:	e5832000 	str	r2, [r3]
 			}
 			i++;
- c000870:	e51b3014 	ldr	r3, [fp, #-20]	; 0xffffffec
- c000874:	e2833001 	add	r3, r3, #1
- c000878:	e50b3014 	str	r3, [fp, #-20]	; 0xffffffec
+ c0008d0:	e51b3014 	ldr	r3, [fp, #-20]	; 0xffffffec
+ c0008d4:	e2833001 	add	r3, r3, #1
+ c0008d8:	e50b3014 	str	r3, [fp, #-20]	; 0xffffffec
 			j++;
 		}
 
 		//Verificar el valor en toda la columna (Vertical)
 		int i = 0;
 		while(i < NUM_FILAS){
- c00087c:	e51b3014 	ldr	r3, [fp, #-20]	; 0xffffffec
- c000880:	e3530008 	cmp	r3, #8
- c000884:	daffffd3 	ble	c0007d8 <cuadricula_candidatos_verificar+0x130>
+ c0008dc:	e51b3014 	ldr	r3, [fp, #-20]	; 0xffffffec
+ c0008e0:	e3530008 	cmp	r3, #8
+ c0008e4:	daffffd3 	ble	c000838 <cuadricula_candidatos_verificar+0x130>
 			}
 			i++;
 		}
 
 		/*Calcular la posicion inicial para seccion correspondiente a la ubicacion actual*/
 		int row_start = (row / 3) * 3;
- c000888:	e51b303c 	ldr	r3, [fp, #-60]	; 0xffffffc4
- c00088c:	e59f2148 	ldr	r2, [pc, #328]	; c0009dc <cuadricula_candidatos_verificar+0x334>
- c000890:	e0c21293 	smull	r1, r2, r3, r2
- c000894:	e1a03fc3 	asr	r3, r3, #31
- c000898:	e0632002 	rsb	r2, r3, r2
- c00089c:	e1a03002 	mov	r3, r2
- c0008a0:	e1a03083 	lsl	r3, r3, #1
- c0008a4:	e0833002 	add	r3, r3, r2
- c0008a8:	e50b3028 	str	r3, [fp, #-40]	; 0xffffffd8
+ c0008e8:	e51b303c 	ldr	r3, [fp, #-60]	; 0xffffffc4
+ c0008ec:	e59f2148 	ldr	r2, [pc, #328]	; c000a3c <cuadricula_candidatos_verificar+0x334>
+ c0008f0:	e0c21293 	smull	r1, r2, r3, r2
+ c0008f4:	e1a03fc3 	asr	r3, r3, #31
+ c0008f8:	e0632002 	rsb	r2, r3, r2
+ c0008fc:	e1a03002 	mov	r3, r2
+ c000900:	e1a03083 	lsl	r3, r3, #1
+ c000904:	e0833002 	add	r3, r3, r2
+ c000908:	e50b3028 	str	r3, [fp, #-40]	; 0xffffffd8
 		int col_start = (col / 3) * 3;
- c0008ac:	e51b3040 	ldr	r3, [fp, #-64]	; 0xffffffc0
- c0008b0:	e59f2124 	ldr	r2, [pc, #292]	; c0009dc <cuadricula_candidatos_verificar+0x334>
- c0008b4:	e0c21293 	smull	r1, r2, r3, r2
- c0008b8:	e1a03fc3 	asr	r3, r3, #31
- c0008bc:	e0632002 	rsb	r2, r3, r2
- c0008c0:	e1a03002 	mov	r3, r2
- c0008c4:	e1a03083 	lsl	r3, r3, #1
- c0008c8:	e0833002 	add	r3, r3, r2
- c0008cc:	e50b302c 	str	r3, [fp, #-44]	; 0xffffffd4
+ c00090c:	e51b3040 	ldr	r3, [fp, #-64]	; 0xffffffc0
+ c000910:	e59f2124 	ldr	r2, [pc, #292]	; c000a3c <cuadricula_candidatos_verificar+0x334>
+ c000914:	e0c21293 	smull	r1, r2, r3, r2
+ c000918:	e1a03fc3 	asr	r3, r3, #31
+ c00091c:	e0632002 	rsb	r2, r3, r2
+ c000920:	e1a03002 	mov	r3, r2
+ c000924:	e1a03083 	lsl	r3, r3, #1
+ c000928:	e0833002 	add	r3, r3, r2
+ c00092c:	e50b302c 	str	r3, [fp, #-44]	; 0xffffffd4
 
 		//Verificar valor en la seccion (cuadro 3x3)
 		i = row_start;
- c0008d0:	e51b3028 	ldr	r3, [fp, #-40]	; 0xffffffd8
- c0008d4:	e50b3014 	str	r3, [fp, #-20]	; 0xffffffec
+ c000930:	e51b3028 	ldr	r3, [fp, #-40]	; 0xffffffd8
+ c000934:	e50b3014 	str	r3, [fp, #-20]	; 0xffffffec
 		while(i < (row_start + 3)){
- c0008d8:	ea000037 	b	c0009bc <cuadricula_candidatos_verificar+0x314>
+ c000938:	ea000037 	b	c000a1c <cuadricula_candidatos_verificar+0x314>
 			int j = col_start;
- c0008dc:	e51b302c 	ldr	r3, [fp, #-44]	; 0xffffffd4
- c0008e0:	e50b3018 	str	r3, [fp, #-24]	; 0xffffffe8
-			while(j < (col_start + 3)){
- c0008e4:	ea00002c 	b	c00099c <cuadricula_candidatos_verificar+0x2f4>
-				uint8_t is_bit_set = cuadricula[i][j] & (1 << displace);
- c0008e8:	e51b3014 	ldr	r3, [fp, #-20]	; 0xffffffec
- c0008ec:	e1a03283 	lsl	r3, r3, #5
- c0008f0:	e51b2038 	ldr	r2, [fp, #-56]	; 0xffffffc8
- c0008f4:	e0822003 	add	r2, r2, r3
- c0008f8:	e51b3018 	ldr	r3, [fp, #-24]	; 0xffffffe8
- c0008fc:	e1a03083 	lsl	r3, r3, #1
- c000900:	e0823003 	add	r3, r2, r3
- c000904:	e1d330b0 	ldrh	r3, [r3]
- c000908:	e20320ff 	and	r2, r3, #255	; 0xff
- c00090c:	e3a01001 	mov	r1, #1
- c000910:	e51b3020 	ldr	r3, [fp, #-32]	; 0xffffffe0
- c000914:	e1a03311 	lsl	r3, r1, r3
- c000918:	e20330ff 	and	r3, r3, #255	; 0xff
- c00091c:	e0023003 	and	r3, r2, r3
- c000920:	e20330ff 	and	r3, r3, #255	; 0xff
- c000924:	e54b302d 	strb	r3, [fp, #-45]	; 0xffffffd3
-				if((i != row_start || j != col_start) && is_bit_set){
- c000928:	e51b2014 	ldr	r2, [fp, #-20]	; 0xffffffec
- c00092c:	e51b3028 	ldr	r3, [fp, #-40]	; 0xffffffd8
- c000930:	e1520003 	cmp	r2, r3
- c000934:	1a000003 	bne	c000948 <cuadricula_candidatos_verificar+0x2a0>
- c000938:	e51b2018 	ldr	r2, [fp, #-24]	; 0xffffffe8
  c00093c:	e51b302c 	ldr	r3, [fp, #-44]	; 0xffffffd4
- c000940:	e1520003 	cmp	r2, r3
- c000944:	0a000011 	beq	c000990 <cuadricula_candidatos_verificar+0x2e8>
- c000948:	e55b302d 	ldrb	r3, [fp, #-45]	; 0xffffffd3
- c00094c:	e3530000 	cmp	r3, #0
- c000950:	0a00000e 	beq	c000990 <cuadricula_candidatos_verificar+0x2e8>
+ c000940:	e50b3018 	str	r3, [fp, #-24]	; 0xffffffe8
+			while(j < (col_start + 3)){
+ c000944:	ea00002c 	b	c0009fc <cuadricula_candidatos_verificar+0x2f4>
+				uint8_t is_bit_set = cuadricula[i][j] & (1 << displace);
+ c000948:	e51b3014 	ldr	r3, [fp, #-20]	; 0xffffffec
+ c00094c:	e1a03283 	lsl	r3, r3, #5
+ c000950:	e51b2038 	ldr	r2, [fp, #-56]	; 0xffffffc8
+ c000954:	e0822003 	add	r2, r2, r3
+ c000958:	e51b3018 	ldr	r3, [fp, #-24]	; 0xffffffe8
+ c00095c:	e1a03083 	lsl	r3, r3, #1
+ c000960:	e0823003 	add	r3, r2, r3
+ c000964:	e1d330b0 	ldrh	r3, [r3]
+ c000968:	e20320ff 	and	r2, r3, #255	; 0xff
+ c00096c:	e3a01001 	mov	r1, #1
+ c000970:	e51b3020 	ldr	r3, [fp, #-32]	; 0xffffffe0
+ c000974:	e1a03311 	lsl	r3, r1, r3
+ c000978:	e20330ff 	and	r3, r3, #255	; 0xff
+ c00097c:	e0023003 	and	r3, r2, r3
+ c000980:	e20330ff 	and	r3, r3, #255	; 0xff
+ c000984:	e54b302d 	strb	r3, [fp, #-45]	; 0xffffffd3
+				if((i != row_start || j != col_start) && is_bit_set){
+ c000988:	e51b2014 	ldr	r2, [fp, #-20]	; 0xffffffec
+ c00098c:	e51b3028 	ldr	r3, [fp, #-40]	; 0xffffffd8
+ c000990:	e1520003 	cmp	r2, r3
+ c000994:	1a000003 	bne	c0009a8 <cuadricula_candidatos_verificar+0x2a0>
+ c000998:	e51b2018 	ldr	r2, [fp, #-24]	; 0xffffffe8
+ c00099c:	e51b302c 	ldr	r3, [fp, #-44]	; 0xffffffd4
+ c0009a0:	e1520003 	cmp	r2, r3
+ c0009a4:	0a000011 	beq	c0009f0 <cuadricula_candidatos_verificar+0x2e8>
+ c0009a8:	e55b302d 	ldrb	r3, [fp, #-45]	; 0xffffffd3
+ c0009ac:	e3530000 	cmp	r3, #0
+ c0009b0:	0a00000e 	beq	c0009f0 <cuadricula_candidatos_verificar+0x2e8>
 					activar_error(cuadricula[i][j]);
- c000954:	e51b3014 	ldr	r3, [fp, #-20]	; 0xffffffec
- c000958:	e1a03283 	lsl	r3, r3, #5
- c00095c:	e51b2038 	ldr	r2, [fp, #-56]	; 0xffffffc8
- c000960:	e0822003 	add	r2, r2, r3
- c000964:	e51b3018 	ldr	r3, [fp, #-24]	; 0xffffffe8
- c000968:	e1a03083 	lsl	r3, r3, #1
- c00096c:	e0823003 	add	r3, r2, r3
- c000970:	e1d330b0 	ldrh	r3, [r3]
- c000974:	e1a00003 	mov	r0, r3
- c000978:	ebfffe0b 	bl	c0001ac <activar_error>
+ c0009b4:	e51b3014 	ldr	r3, [fp, #-20]	; 0xffffffec
+ c0009b8:	e1a03283 	lsl	r3, r3, #5
+ c0009bc:	e51b2038 	ldr	r2, [fp, #-56]	; 0xffffffc8
+ c0009c0:	e0822003 	add	r2, r2, r3
+ c0009c4:	e51b3018 	ldr	r3, [fp, #-24]	; 0xffffffe8
+ c0009c8:	e1a03083 	lsl	r3, r3, #1
+ c0009cc:	e0823003 	add	r3, r2, r3
+ c0009d0:	e1d330b0 	ldrh	r3, [r3]
+ c0009d4:	e1a00003 	mov	r0, r3
+ c0009d8:	ebfffdf9 	bl	c0001c4 <activar_error>
 					(*errors)++;
- c00097c:	e51b3044 	ldr	r3, [fp, #-68]	; 0xffffffbc
- c000980:	e5933000 	ldr	r3, [r3]
- c000984:	e2832001 	add	r2, r3, #1
- c000988:	e51b3044 	ldr	r3, [fp, #-68]	; 0xffffffbc
- c00098c:	e5832000 	str	r2, [r3]
+ c0009dc:	e51b3044 	ldr	r3, [fp, #-68]	; 0xffffffbc
+ c0009e0:	e5933000 	ldr	r3, [r3]
+ c0009e4:	e2832001 	add	r2, r3, #1
+ c0009e8:	e51b3044 	ldr	r3, [fp, #-68]	; 0xffffffbc
+ c0009ec:	e5832000 	str	r2, [r3]
 				}
 				j++;
- c000990:	e51b3018 	ldr	r3, [fp, #-24]	; 0xffffffe8
- c000994:	e2833001 	add	r3, r3, #1
- c000998:	e50b3018 	str	r3, [fp, #-24]	; 0xffffffe8
+ c0009f0:	e51b3018 	ldr	r3, [fp, #-24]	; 0xffffffe8
+ c0009f4:	e2833001 	add	r3, r3, #1
+ c0009f8:	e50b3018 	str	r3, [fp, #-24]	; 0xffffffe8
 
 		//Verificar valor en la seccion (cuadro 3x3)
 		i = row_start;
 		while(i < (row_start + 3)){
 			int j = col_start;
 			while(j < (col_start + 3)){
- c00099c:	e51b302c 	ldr	r3, [fp, #-44]	; 0xffffffd4
- c0009a0:	e2832003 	add	r2, r3, #3
- c0009a4:	e51b3018 	ldr	r3, [fp, #-24]	; 0xffffffe8
- c0009a8:	e1520003 	cmp	r2, r3
- c0009ac:	caffffcd 	bgt	c0008e8 <cuadricula_candidatos_verificar+0x240>
+ c0009fc:	e51b302c 	ldr	r3, [fp, #-44]	; 0xffffffd4
+ c000a00:	e2832003 	add	r2, r3, #3
+ c000a04:	e51b3018 	ldr	r3, [fp, #-24]	; 0xffffffe8
+ c000a08:	e1520003 	cmp	r2, r3
+ c000a0c:	caffffcd 	bgt	c000948 <cuadricula_candidatos_verificar+0x240>
 					activar_error(cuadricula[i][j]);
 					(*errors)++;
 				}
 				j++;
 			}
 			i++;
- c0009b0:	e51b3014 	ldr	r3, [fp, #-20]	; 0xffffffec
- c0009b4:	e2833001 	add	r3, r3, #1
- c0009b8:	e50b3014 	str	r3, [fp, #-20]	; 0xffffffec
+ c000a10:	e51b3014 	ldr	r3, [fp, #-20]	; 0xffffffec
+ c000a14:	e2833001 	add	r3, r3, #1
+ c000a18:	e50b3014 	str	r3, [fp, #-20]	; 0xffffffec
 		int row_start = (row / 3) * 3;
 		int col_start = (col / 3) * 3;
 
 		//Verificar valor en la seccion (cuadro 3x3)
 		i = row_start;
 		while(i < (row_start + 3)){
- c0009bc:	e51b3028 	ldr	r3, [fp, #-40]	; 0xffffffd8
- c0009c0:	e2832003 	add	r2, r3, #3
- c0009c4:	e51b3014 	ldr	r3, [fp, #-20]	; 0xffffffec
- c0009c8:	e1520003 	cmp	r2, r3
- c0009cc:	caffffc2 	bgt	c0008dc <cuadricula_candidatos_verificar+0x234>
+ c000a1c:	e51b3028 	ldr	r3, [fp, #-40]	; 0xffffffd8
+ c000a20:	e2832003 	add	r2, r3, #3
+ c000a24:	e51b3014 	ldr	r3, [fp, #-20]	; 0xffffffec
+ c000a28:	e1520003 	cmp	r2, r3
+ c000a2c:	caffffc2 	bgt	c00093c <cuadricula_candidatos_verificar+0x234>
 				j++;
 			}
 			i++;
 		}
 	}
 }
- c0009d0:	e24bd00c 	sub	sp, fp, #12
- c0009d4:	e89d6800 	ldm	sp, {fp, sp, lr}
- c0009d8:	e12fff1e 	bx	lr
- c0009dc:	55555556 	.word	0x55555556
+ c000a30:	e24bd00c 	sub	sp, fp, #12
+ c000a34:	e89d6800 	ldm	sp, {fp, sp, lr}
+ c000a38:	e12fff1e 	bx	lr
+ c000a3c:	55555556 	.word	0x55555556
 
-0c0009e0 <sudoku9x9>:
+0c000a40 <verificar_lista_calculada>:
+
+static void
+verificar_lista_calculada(CELDA cuadricula[NUM_FILAS][NUM_COLUMNAS]){
+ c000a40:	e1a0c00d 	mov	ip, sp
+ c000a44:	e92dd800 	push	{fp, ip, lr, pc}
+ c000a48:	e24cb004 	sub	fp, ip, #4
+ c000a4c:	e24dd018 	sub	sp, sp, #24
+ c000a50:	e50b0020 	str	r0, [fp, #-32]	; 0xffffffe0
+	int errors = 0;
+ c000a54:	e3a03000 	mov	r3, #0
+ c000a58:	e50b3018 	str	r3, [fp, #-24]	; 0xffffffe8
+	    int row = 0;
+ c000a5c:	e3a03000 	mov	r3, #0
+ c000a60:	e50b3010 	str	r3, [fp, #-16]
+	    while(row < NUM_FILAS){
+ c000a64:	ea000010 	b	c000aac <verificar_lista_calculada+0x6c>
+			int col = 0;
+ c000a68:	e3a03000 	mov	r3, #0
+ c000a6c:	e50b3014 	str	r3, [fp, #-20]	; 0xffffffec
+	    	while(col < NUM_COLUMNAS - 7){
+ c000a70:	ea000007 	b	c000a94 <verificar_lista_calculada+0x54>
+	    		cuadricula_candidatos_verificar(cuadricula, row, col, &errors);
+ c000a74:	e24b3018 	sub	r3, fp, #24
+ c000a78:	e51b0020 	ldr	r0, [fp, #-32]	; 0xffffffe0
+ c000a7c:	e51b1010 	ldr	r1, [fp, #-16]
+ c000a80:	e51b2014 	ldr	r2, [fp, #-20]	; 0xffffffec
+ c000a84:	ebffff1f 	bl	c000708 <cuadricula_candidatos_verificar>
+	    		col++;
+ c000a88:	e51b3014 	ldr	r3, [fp, #-20]	; 0xffffffec
+ c000a8c:	e2833001 	add	r3, r3, #1
+ c000a90:	e50b3014 	str	r3, [fp, #-20]	; 0xffffffec
+verificar_lista_calculada(CELDA cuadricula[NUM_FILAS][NUM_COLUMNAS]){
+	int errors = 0;
+	    int row = 0;
+	    while(row < NUM_FILAS){
+			int col = 0;
+	    	while(col < NUM_COLUMNAS - 7){
+ c000a94:	e51b3014 	ldr	r3, [fp, #-20]	; 0xffffffec
+ c000a98:	e3530008 	cmp	r3, #8
+ c000a9c:	dafffff4 	ble	c000a74 <verificar_lista_calculada+0x34>
+	    		cuadricula_candidatos_verificar(cuadricula, row, col, &errors);
+	    		col++;
+	    	}
+	    	row++;
+ c000aa0:	e51b3010 	ldr	r3, [fp, #-16]
+ c000aa4:	e2833001 	add	r3, r3, #1
+ c000aa8:	e50b3010 	str	r3, [fp, #-16]
+
+static void
+verificar_lista_calculada(CELDA cuadricula[NUM_FILAS][NUM_COLUMNAS]){
+	int errors = 0;
+	    int row = 0;
+	    while(row < NUM_FILAS){
+ c000aac:	e51b3010 	ldr	r3, [fp, #-16]
+ c000ab0:	e3530008 	cmp	r3, #8
+ c000ab4:	daffffeb 	ble	c000a68 <verificar_lista_calculada+0x28>
+	    		cuadricula_candidatos_verificar(cuadricula, row, col, &errors);
+	    		col++;
+	    	}
+	    	row++;
+	    }
+}
+ c000ab8:	e24bd00c 	sub	sp, fp, #12
+ c000abc:	e89d6800 	ldm	sp, {fp, sp, lr}
+ c000ac0:	e12fff1e 	bx	lr
+
+0c000ac4 <sudoku9x9>:
 /* *******************************************cuadricula[NUM_FILAS][NUM_COLUMNAS]**********************************
  * programa principal del juego que recibe el tablero,
  * y la senyal de ready que indica que se han actualizado fila y columna */
 void
 sudoku9x9(CELDA cuadricula[NUM_FILAS][NUM_COLUMNAS], char *ready)
 {
- c0009e0:	e1a0c00d 	mov	ip, sp
- c0009e4:	e92dd800 	push	{fp, ip, lr, pc}
- c0009e8:	e24cb004 	sub	fp, ip, #4
- c0009ec:	e24dd018 	sub	sp, sp, #24
- c0009f0:	e50b0020 	str	r0, [fp, #-32]	; 0xffffffe0
- c0009f4:	e50b1024 	str	r1, [fp, #-36]	; 0xffffffdc
+ c000ac4:	e1a0c00d 	mov	ip, sp
+ c000ac8:	e92dd800 	push	{fp, ip, lr, pc}
+ c000acc:	e24cb004 	sub	fp, ip, #4
+ c000ad0:	e24dd010 	sub	sp, sp, #16
+ c000ad4:	e50b0018 	str	r0, [fp, #-24]	; 0xffffffe8
+ c000ad8:	e50b101c 	str	r1, [fp, #-28]	; 0xffffffe4
     int celdas_vacias;
 
     /* calcula lista de candidatos, versi—n C */
     celdas_vacias = sudoku_candidatos_init_c(cuadricula);
- c0009f8:	e51b0020 	ldr	r0, [fp, #-32]	; 0xffffffe0
- c0009fc:	ebffff10 	bl	c000644 <sudoku_candidatos_init_c>
- c000a00:	e50b0018 	str	r0, [fp, #-24]	; 0xffffffe8
+ c000adc:	e51b0018 	ldr	r0, [fp, #-24]	; 0xffffffe8
+ c000ae0:	ebfffedb 	bl	c000654 <sudoku_candidatos_init_c>
+ c000ae4:	e50b0010 	str	r0, [fp, #-16]
 
     /* verificar que la lista de candidatos calculada es correcta */
-    int errors = 0;
- c000a04:	e3a03000 	mov	r3, #0
- c000a08:	e50b301c 	str	r3, [fp, #-28]	; 0xffffffe4
-    int row = 0;
- c000a0c:	e3a03000 	mov	r3, #0
- c000a10:	e50b3010 	str	r3, [fp, #-16]
-    while(row < NUM_FILAS){
- c000a14:	ea000010 	b	c000a5c <sudoku9x9+0x7c>
-		int col = 0;
- c000a18:	e3a03000 	mov	r3, #0
- c000a1c:	e50b3014 	str	r3, [fp, #-20]	; 0xffffffec
-    	while(col < NUM_COLUMNAS - 7){
- c000a20:	ea000007 	b	c000a44 <sudoku9x9+0x64>
-    		cuadricula_candidatos_verificar(cuadricula, row, col, &errors);
- c000a24:	e24b301c 	sub	r3, fp, #28
- c000a28:	e51b0020 	ldr	r0, [fp, #-32]	; 0xffffffe0
- c000a2c:	e51b1010 	ldr	r1, [fp, #-16]
- c000a30:	e51b2014 	ldr	r2, [fp, #-20]	; 0xffffffec
- c000a34:	ebffff1b 	bl	c0006a8 <cuadricula_candidatos_verificar>
-    		col++;
- c000a38:	e51b3014 	ldr	r3, [fp, #-20]	; 0xffffffec
- c000a3c:	e2833001 	add	r3, r3, #1
- c000a40:	e50b3014 	str	r3, [fp, #-20]	; 0xffffffec
-    /* verificar que la lista de candidatos calculada es correcta */
-    int errors = 0;
-    int row = 0;
-    while(row < NUM_FILAS){
-		int col = 0;
-    	while(col < NUM_COLUMNAS - 7){
- c000a44:	e51b3014 	ldr	r3, [fp, #-20]	; 0xffffffec
- c000a48:	e3530008 	cmp	r3, #8
- c000a4c:	dafffff4 	ble	c000a24 <sudoku9x9+0x44>
-    		cuadricula_candidatos_verificar(cuadricula, row, col, &errors);
-    		col++;
-    	}
-    	row++;
- c000a50:	e51b3010 	ldr	r3, [fp, #-16]
- c000a54:	e2833001 	add	r3, r3, #1
- c000a58:	e50b3010 	str	r3, [fp, #-16]
-    celdas_vacias = sudoku_candidatos_init_c(cuadricula);
-
-    /* verificar que la lista de candidatos calculada es correcta */
-    int errors = 0;
-    int row = 0;
-    while(row < NUM_FILAS){
- c000a5c:	e51b3010 	ldr	r3, [fp, #-16]
- c000a60:	e3530008 	cmp	r3, #8
- c000a64:	daffffeb 	ble	c000a18 <sudoku9x9+0x38>
-    		col++;
-    	}
-    	row++;
-    }
+    verificar_lista_calculada(cuadricula);
+ c000ae8:	e51b0018 	ldr	r0, [fp, #-24]	; 0xffffffe8
+ c000aec:	ebffffd3 	bl	c000a40 <verificar_lista_calculada>
     /* repetir para otras versiones (C optimizado, ARM, THUMB) */
 }
- c000a68:	e24bd00c 	sub	sp, fp, #12
- c000a6c:	e89d6800 	ldm	sp, {fp, sp, lr}
- c000a70:	e12fff1e 	bx	lr
+ c000af0:	e24bd00c 	sub	sp, fp, #12
+ c000af4:	e89d6800 	ldm	sp, {fp, sp, lr}
+ c000af8:	e12fff1e 	bx	lr

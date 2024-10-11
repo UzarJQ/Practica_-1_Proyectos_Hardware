@@ -98,7 +98,7 @@ propagar_if_value(CELDA cuadricula[NUM_FILAS][NUM_COLUMNAS], int *celdas_vacias)
 			if(valor_actual == 0x0000){
 				(*celdas_vacias)++;
 			} else {
-				sudoku_candidatos_propagar_arm(cuadricula, row, col, valor_actual);
+				sudoku_candidatos_propagar_c(cuadricula, row, col, valor_actual);
 			}
 			col++;
 		}
@@ -114,13 +114,27 @@ static int
 sudoku_candidatos_init_c(CELDA cuadricula[NUM_FILAS][NUM_COLUMNAS])
 {
  	int celdas_vacias = 0;
+ 	int version_ejecucion = 1;
 	/*TODO: inicializa lista de candidatos */
     init_candidatos(cuadricula);
 
     /* TODO: propagar si la celda tiene valor*/
     uint8_t valor_actual = celda_leer_valor(cuadricula[0][0]);
-    sudoku_candidatos_propagar_arm(cuadricula, 0, 0, valor_actual);
-    //propagar_if_value(cuadricula, &celdas_vacias);
+
+    switch (version_ejecucion) {
+    	case 1:
+    		propagar_if_value(cuadricula, &celdas_vacias);
+            break;
+    	case 2:
+    		celdas_vacias = sudoku_candidatos_propagar_arm(cuadricula, 0, 0, valor_actual);
+            break;
+    	case 3:
+    		//celdas_vacias = sudoku_candidatos_propagar_thumb(cuadricula, 0, 0);
+            break;
+    	default:
+    		//Versión de ejecución no válida
+            break;
+    }
 
     return celdas_vacias;
 }
@@ -177,6 +191,20 @@ cuadricula_candidatos_verificar(CELDA cuadricula[NUM_FILAS][NUM_COLUMNAS],int ro
 		}
 	}
 }
+
+static void
+verificar_lista_calculada(CELDA cuadricula[NUM_FILAS][NUM_COLUMNAS]){
+	int errors = 0;
+	    int row = 0;
+	    while(row < NUM_FILAS){
+			int col = 0;
+	    	while(col < NUM_COLUMNAS - 7){
+	    		cuadricula_candidatos_verificar(cuadricula, row, col, &errors);
+	    		col++;
+	    	}
+	    	row++;
+	    }
+}
 /* *****************************************************************************
  * Funciones publicas
  * (pueden ser invocadas desde otro fichero) */
@@ -193,16 +221,7 @@ sudoku9x9(CELDA cuadricula[NUM_FILAS][NUM_COLUMNAS], char *ready)
     celdas_vacias = sudoku_candidatos_init_c(cuadricula);
 
     /* verificar que la lista de candidatos calculada es correcta */
-    int errors = 0;
-    int row = 0;
-    while(row < NUM_FILAS){
-		int col = 0;
-    	while(col < NUM_COLUMNAS - 7){
-    		cuadricula_candidatos_verificar(cuadricula, row, col, &errors);
-    		col++;
-    	}
-    	row++;
-    }
+    verificar_lista_calculada(cuadricula);
     /* repetir para otras versiones (C optimizado, ARM, THUMB) */
 }
 
