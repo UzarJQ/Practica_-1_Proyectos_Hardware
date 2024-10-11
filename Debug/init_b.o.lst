@@ -8,293 +8,301 @@
    4              	.global start
    5              	.global sudoku_candidatos_propagar_arm
    6              	
-   7              	@ Recorre la cuadricula y llama a las funciones de propagacion si la celda tiene un valor distinto 
+   7              	@ Recorre la cuadricula llamando a las funciones de propagacion (fila, columna y region) SI la celd
    8              	sudoku_candidatos_propagar_arm:
-   9              		@ r0 = cuadricula
-  10              		@ r1 = indice fila
-  11              		@ r2 = indice columna
-  12              		@ r3 = valor actual celda
-  13              		@ r6 = bit desplazado (se usara para desactivar los candidatos)
-  14              	
-  15 0000 21402DE9 		push {r0, r5, lr}
-  16              	
-  17              		loop_i:
-  18 0004 090051E3 			cmp r1, #9
-  19 0008 140000AA 			bge loop_i_end					@ Comprobar si se ha llegado a la ultima fila
-  20              	
-  21 000c 8142A0E1 			lsl r4, r1, #5					@ Desplazamiento a siguiente fila (r1 * 32)
+   9              	
+  10              		@ r0 = cuadricula
+  11              		@ r1 = indice fila
+  12              		@ r2 = indice columna
+  13              		@ r3 = valor actual celda
+  14              		@ r4 = desplazamiento de la fila
+  15              		@ r5 = desplazamiento de la columna
+  16              		@ r6 = bit desplazado (se usara para desactivar los candidatos)
+  17              		@ r7 = desplazamiento total (r4 + r5)
+  18              	
+  19              	loop_i:
+  20 0000 090051E3 		cmp r1, #9
+  21 0004 160000AA 		bge loop_i_end
   22              	
-  23 0010 0020A0E3 			mov r2, #0
-  24              		loop_j:
-  25 0014 090052E3 			cmp r2, #9
-  26 0018 0E0000AA 			bge loop_j_end					@ Comprobar si se ha llegado a la ultima columna
-  27              	
-  28 001c 8250A0E1 			lsl r5, r2, #1					@ Desplazamiento a siguiente columna (r2 * 2)
+  23 0008 8142A0E1 		lsl r4, r1, #5						@ Desplazamiento a siguiente fila (r1 * 32 bytes)
+  24              	
+  25 000c 0020A0E3 		mov r2, #0
+  26              	loop_j:
+  27 0010 090052E3 		cmp r2, #9
+  28 0014 100000AA 		bge loop_j_end					@ Comprobar si se ha llegado a la ultima columna
   29              	
-  30 0020 057084E0 			add r7, r4, r5					@ Desplazamiento total (fila + columna)
-  31 0024 B73090E1 			ldrh r3, [r0, r7]
-  32              	
-  33              	
-  34 0028 0F3003E2 			and r3, r3, #0xF				@ Objeter valor actual de la celda (celda_leer_valor)
-  35              	
-  36 002c 000053E3 			cmp r3, #0						@ Compara si hay un valor en la celda (si == 0, se omite la propagacion)
-  37 0030 0600000A 			beq skip_propagation
-  38 0034 06402DE9 			push {r1, r2, lr}			@ Backup de indices y valor de la celda
-  39              	
-  40 0038 038083E2 			add r8, r3, #3					@ r4 = displace = (3 + r3)
-  41 003c 0160A0E3 			mov r6, #1
-  42 0040 1668A0E1 			lsl r6, r6, r8					@ desplazar bit a la izquierda r4 posiciones
-  43              	
-  44              	@ ---------------------------- Actualizar candidatos de las filas (verticalmente) -----------------
-  45 0044 070000EB 			bl update_row_candidates
-  46              	@ ---------------------------- Actualizar candidatos de las columnas (horizontalmente) ------------
-  47 0048 110000EB 			bl update_column_candidates
-  48              	
-  49 004c 0640BDE8 			pop {r1, r2, lr}			@ Restaurar valor de los indices y la celda
-  50              			skip_propagation:
-  51 0050 012082E2 				add r2, r2, #1
-  52 0054 EEFFFFEA 				b loop_j
-  53              		loop_j_end:
-  54 0058 011081E2 			add r1, r1, #1
-  55 005c E8FFFFEA 			b loop_i
-  56              		loop_i_end:
-  57 0060 2140BDE8 			pop {r0, r5, lr}				@ Restaurar valor de la cuadricula y el programa
-  58 0064 1EFF2FE1 			bx lr
-  59              	
-  60              	@ ---------------------------- Calculo de los indices para la seccion correspondiente -------------
-  61              		@bl update_region_candidates
+  30 0018 8250A0E1 		lsl r5, r2, #1					@ Desplazamiento a siguiente columna (r2 * 2)
+  31              	
+  32 001c 057084E0 		add r7, r4, r5					@ Desplazamiento total (fila + columna)
+  33 0020 B73090E1 		ldrh r3, [r0, r7]
+  34              	
+  35 0024 0F3003E2 		and r3, r3, #0xF				@ Objeter valor actual de la celda (celda_leer_valor)
+  36 0028 000053E3 		cmp r3, #0						@ Compara si hay un valor en la celda (si == 0, se omite la propagacion)
+  37 002c 0800000A 		beq skip_propagation
+  38              	
+  39 0030 038083E2 		add r8, r3, #3					@ r8 = displace = (3 + r3)
+  40 0034 0160A0E3 		mov r6, #1
+  41 0038 1668A0E1 		lsl r6, r6, r8					@ desplazar bit a la izquierda r4 posiciones
+  42              	
+  43 003c 0A0000EB 		bl update_row_candidates
+  44              	
+  45 0040 140000EB 		bl update_column_candidates
+  46              	
+  47 0044 06402DE9 		push {r1, r2, lr}
+  48 0048 1D0000EB 		bl calc_region_indexes
+  49 004c 2F0000EB 		bl update_region_candidates
+  50 0050 0640BDE8 		pop {r1, r2, lr}
+  51              	
+  52              	skip_propagation:
+  53 0054 012082E2 		add r2, r2, #1
+  54 0058 ECFFFFEA 		b loop_j
+  55              	loop_j_end:
+  56 005c 011081E2 		add r1, r1, #1
+  57 0060 E6FFFFEA 		b loop_i
+  58              	loop_i_end:
+  59 0064 2140BDE8 		pop {r0, r5, lr}					@ Restaurar valor de la cuadricula y el programa sudoku9x9
+  60 0068 3E0000EA 		B stop
+  61              	
   62              	
   63              	update_row_candidates:
-  64 0068 0010A0E3 	    mov r1, #0                   @ Inicializar el contador de fila en 0
+  64 006c 0080A0E3 	    mov r8, #0
   65              	fila_loop:
-  66 006c 090051E3 	    cmp r1, #9                   @ Comparar si se ha llegado a la última fila (9)
-  67 0070 060000AA 	    bge fin_fila                 @ Si es mayor o igual a 9, salir del bucle
+  66 0070 090058E3 	    cmp r8, #9
+  67 0074 060000AA 	    bge fin_fila
   68              	
-  69 0074 8122A0E1 	    lsl r2, r1, #5               @ Desplazamiento de la fila (r1 * 32)
-  70 0078 058082E0 	    add r8, r2, r5               @ r4 = desplazamiento fila + columna (columna es fija en r5)
+  69 0078 8892A0E1 	    lsl r9, r8, #5               		@ Desplazar la fila (r1 * 32)
+  70 007c 05A089E0 	    add r10, r9, r5               		@ r10 = desplazamiento total = fila + columna (columna fija par
   71              	
-  72 007c B83090E1 	    ldrh r3, [r0, r8]            @ Cargar el valor de la celda de la fila actual
+  72 0080 BA3090E1 	    ldrh r3, [r0, r10]
   73              	
-  74 0080 0630C3E1 	    bic r3, r3, r6               @ celda &= ~(1 << displace) - Actualizar los bits candidatos
-  75 0084 B83080E1 	    strh r3, [r0, r8]            @ Guardar el valor actualizado en la celda
+  74 0084 0630C3E1 	    bic r3, r3, r6               		@ celda &= ~(1 << displace) - Actualizar el bit candidato
+  75 0088 BA3080E1 	    strh r3, [r0, r10]
   76              	
-  77 0088 011081E2 	    add r1, r1, #1               @ Siguiente fila
-  78 008c F6FFFFEA 	    b fila_loop                  @ Repetir para la siguiente fila
+  77 008c 018088E2 	    add r8, r8, #1
+  78 0090 F6FFFFEA 	    b fila_loop
   79              	
   80              	fin_fila:
-  81 0090 1EFF2FE1 	    bx lr
+  81 0094 1EFF2FE1 	    bx lr
   82              	
   83              	update_column_candidates:
-  84 0094 0010A0E3 	    mov r1, #0                   @ Inicializar el contador de columna en 0
+  84 0098 0080A0E3 	    mov r8, #0
   85              	col_loop:
-  86 0098 090051E3 	    cmp r1, #9                   @ Comparar si se ha llegado a la última columna (9)
-  87 009c 060000AA 	    bge fin_col                  @ Si es mayor o igual a 9, salir del bucle
+  86 009c 090058E3 	    cmp r8, #9
+  87 00a0 060000AA 	    bge fin_col
   88              	
-  89 00a0 8120A0E1 	    lsl r2, r1, #1               @ Desplazar la columna (r1 * 2) para acceder a la celda correcta
-  90 00a4 028084E0 	    add r8, r4, r2               @ r5 = desplazamiento fila + desplazamiento columna
+  89 00a4 8890A0E1 	    lsl r9, r8, #1               		@ Desplazar la columna (r1 * 2)
+  90 00a8 09A084E0 	    add r10, r4, r9               		@ r8 = desplazamiento total = fila + columna (fila fija para r4
   91              	
-  92 00a8 B83090E1 	    ldrh r3, [r0, r8]            @ Cargar el valor de la celda en la columna y fila actuales
+  92 00ac BA3090E1 	    ldrh r3, [r0, r10]
   93              	
-  94 00ac 0630C3E1 	    bic r3, r3, r6               @ celda &= ~(1 << displace) - Actualizar los bits candidatos
-  95 00b0 B83080E1 	    strh r3, [r0, r8]            @ Guardar el valor actualizado en la celda
+  94 00b0 0630C3E1 	    bic r3, r3, r6               		@ celda &= ~(1 << displace) - Actualizar bit candidato
+  95 00b4 BA3080E1 	    strh r3, [r0, r10]
   96              	
-  97 00b4 011081E2 	    add r1, r1, #1               @ Incrementar el contador de columna
-  98 00b8 F6FFFFEA 	    b col_loop                   @ Repetir para la siguiente columna
+  97 00b8 018088E2 	    add r8, r8, #1
+  98 00bc F6FFFFEA 	    b col_loop
   99              	
  100              	fin_col:
- 101 00bc 1EFF2FE1 	    bx lr
+ 101 00c0 1EFF2FE1 	    bx lr
  102              	
  103              	
- 104              	update_region_candidates:
- 105 00c0 0070A0E3 		mov r7, #0
- 106              	col_index:
- 107 00c4 030052E3 		cmp r2, #3					@ Compara que el dividendo sea mayor que el divisor
- 108 00c8 020000BA 		blt col_index_end
- 109              	
- 110 00cc 032042E2 		sub r2, r2, #3
- 111 00d0 017087E2 		add r7, r7, #1
- 112 00d4 FAFFFFEA 		b col_index
- 113              	
- 114              	col_index_end:					@ El indice de la seccion por columna queda guardado en r7
- 115              	
- 116 00d8 0080A0E3 		mov r8, #0
- 117              	row_index:
- 118 00dc 030051E3 		cmp r1, #3					@ Compara que el dividendo sea mayor que el divisor
- 119 00e0 020000BA 		blt row_index_end
- 120              	
- 121 00e4 031041E2 		sub r1, r1, #3
- 122 00e8 018088E2 		add r8, r8, #1
- 123 00ec FAFFFFEA 		b row_index
- 124              	
- 125              	row_index_end:					@ El indice de la seccion por fila queda guardado en r8
- 126              	
- 127              	@ ---------------------------- Recorrer cada fila y actualizar candidatos de la seccion -----------
- 128 00f0 0810A0E1 		mov r1, r8					@ Mover el indice r8 a r1 (fila)
- 129 00f4 0720A0E1 		mov r2, r7					@ Mover el indice r7 a r2 (columna)
- 130              	
- 131 00f8 0070A0E3 		mov r7, #0					@ Contador de la fila (Verticalmente)
- 132              	row_loop:
- 133 00fc 030057E3 		cmp r7, #3
- 134 0100 0E0000AA 		bge row_end
- 135              	
- 136 0104 078081E0 		add r8, r1, r7
- 137 0108 8882A0E1 		lsl r8, r8, #5				@ Desplazamiento hacia la siguiente fila r8
- 138              	
- 139 010c 0090A0E3 		mov r9, #0					@ Contador de la columna (horizontalmente)
- 140              		column_loop:
- 141 0110 030059E3 			cmp r9, #3
- 142 0114 070000AA 			bge column_end
- 143              	
- 144 0118 09A082E0 			add r10, r2, r9
- 145 011c 8AA0A0E1 			lsl r10, r10, #1		@ Desplazamiento a la siguiente columna r10
+ 104              	calc_region_indexes:
+ 105 00c4 0280A0E1 		mov r8, r2
+ 106 00c8 0090A0E3 		mov r9, #0
+ 107              	col_index:
+ 108 00cc 030058E3 		cmp r8, #3
+ 109 00d0 020000BA 		blt col_index_end					@ Si es menor a 3, termina el calculo de columna
+ 110              	
+ 111 00d4 038048E2 		sub r8, r8, #3
+ 112 00d8 039089E2 		add r9, r9, #3
+ 113 00dc FAFFFFEA 		b col_index
+ 114              	col_index_end:
+ 115 00e0 0920A0E1 		mov r2, r9							@ Guardar el indice calculado en r1 (fila)
+ 116              	
+ 117 00e4 0180A0E1 		mov r8, r1
+ 118 00e8 0090A0E3 		mov r9, #0
+ 119              	row_index:
+ 120 00ec 030058E3 		cmp r8, #3
+ 121 00f0 020000BA 		blt row_index_end					@ Si es menor a 3, termina el calculo de fila
+ 122              	
+ 123 00f4 038048E2 		sub r8, r8, #3
+ 124 00f8 039089E2 		add r9, r9, #3
+ 125 00fc FAFFFFEA 		b row_index
+ 126              	row_index_end:
+ 127 0100 0910A0E1 		mov r1, r9							@ Guardar el indice calculado en r2 (columna)
+ 128              	
+ 129 0104 038081E2 		add r8, r1, #3						@ Limite superior de la fila
+ 130 0108 039082E2 		add r9, r2, #3						@ Limite superior de la columna
+ 131              	
+ 132 010c 1EFF2FE1 		bx lr
+ 133              	
+ 134              	update_region_candidates:
+ 135              		@ r0 = cuadricula
+ 136              		@ r1 = indice inicial region (fila)
+ 137              		@ r2 = indice inicial region (columna)
+ 138              		@ r3 = valor_celda
+ 139              		@ r4 = limite max region (fila)
+ 140              		@ r5 = limite max region (columna)
+ 141              		@ r6 = bit e desactivacion desplazado
+ 142              	
+ 143              	region_row_loop:
+ 144 0110 080051E1 		cmp r1, r8
+ 145 0114 0C0000AA 		bge end_of_region
  146              	
- 147 0120 0AB088E0 			add r11, r8, r10
- 148 0124 BBC090E1 			ldrh r12, [r0, r11]		@ Cargar la celda en el registro 12
- 149              	
- 150 0128 06C0CCE1 			bic r12, r12, r6		@ celda &= ~(1 << displace)
- 151 012c BBC080E1 			strh r12, [r0, r11]		@ Guardar el nuevo valor en la celda
- 152              	
- 153 0130 019089E2 			add r9, r9, #1
- 154 0134 F5FFFFEA 			b column_loop
- 155              	
- 156              		column_end:
- 157 0138 017087E2 			add r7, r7, #1
- 158 013c EEFFFFEA 			b row_loop
- 159              	row_end:
- 160 0140 1EFF2FE1 		bx lr
- 161              	
- 162              	start:
- 163              	.arm    /* indicates that we are using the ARM instruction set */
- 164              	
- 165              	#------standard initial code
- 166              	# --- Setup interrupt / exception vectors
- 167 0144 FFFFFFEA 	      B       Reset_Handler
- 168              	/* In this version we do not use the following handlers */
- 169              	################################################################################
- 170              	#-----------Undefined_Handler:
- 171              	#      B       Undefined_Handler
- 172              	#----------SWI_Handler:
- 173              	#      B       SWI_Handler
- 174              	#----------Prefetch_Handler:
- 175              	#      B       Prefetch_Handler
- 176              	#----------Abort_Handler:
- 177              	#      B       Abort_Handler
- 178              	#         NOP      /* Reserved vector */
- 179              	#----------IRQ_Handler:
- 180              	#      B       IRQ_Handler
- 181              	#----------FIQ_Handler:
- 182              	#      B       FIQ_Handler
- 183              	
- 184              	################################################################################
- 185              	# Reset Handler:
- 186              	# the processor starts executing this code after system reset
- 187              	################################################################################
- 188              	Reset_Handler:
- 189              	#
- 190 0148 01D9A0E3 	        MOV     sp, #0x4000      /*  set up stack pointer (r13) */
- 191              	#
- 192              	#  USING A .C FUNCTION
- 193              	#
- 194              	# FUNCTION CALL the parameters are stored in r0 and r1
- 195              	# If there are 4 or less parameters when calling a C function the compiler
- 196              	# assumes that they have been stored in r0-r3.
- 197              	# If there are more parameters you have to store them in the data stack
- 198              	# using the stack pointer
- 199              	# function __c_copy is in copy.c
- 200 014c 0C009FE5 	        LDR     r0, =cuadricula  /*  puntero a la @ inicial de la cuadricula */
- 201              	
- 202              	.extern     sudoku9x9
- 203 0150 0C509FE5 	        ldr         r5, = sudoku9x9
- 204 0154 0FE0A0E1 	        mov         lr, pc
- 205 0158 15FF2FE1 	        bx          r5
- 206              	
- 207              	stop:
- 208 015c FEFFFFEA 	        B       stop        /*  end of program */
- 209              	
- 210              	################################################################################
- 211              	.data
- 212              	.ltorg     
- 213              	.align 5    /* guarantees 32-byte alignment (2^5) */
- 214              	
- 215              	# huecos para cuadrar
- 216              	cuadricula:
- 217              	     /* 9 filas de 16 entradas para facilitar la visualizacion, 16 bits por celda */
- 218 0000 05800000 	    .hword   0x8005,0x0000,0x0000,0x8003,0x0000,0x0000,0x0000,0x0000,0x0000,0, 0,0,0,0,0,0
- 218      00000380 
- 218      00000000 
- 218      00000000 
- 218      00000000 
- 219 0020 00000000 	    .hword   0x0000,0x0000,0x0000,0x0000,0x8009,0x0000,0x0000,0x0000,0x8005,0,0,0,0,0,0,0
- 219      00000000 
- 219      09800000 
- 219      00000000 
- 219      05800000 
- 220 0040 00000980 	    .hword   0x0000,0x8009,0x8006,0x8007,0x0000,0x8005,0x0000,0x8003,0x0000,0,0,0,0,0,0,0
- 220      06800780 
- 220      00000580 
- 220      00000380 
- 220      00000000 
- 221 0060 00000880 	    .hword   0x0000,0x8008,0x0000,0x8009,0x0000,0x0000,0x8006,0x0000,0x0000,0,0,0,0,0,0,0
- 221      00000980 
- 221      00000000 
- 221      06800000 
- 221      00000000 
- 222 0080 00000000 	    .hword   0x0000,0x0000,0x8005,0x8008,0x8006,0x8001,0x8004,0x0000,0x0000,0,0,0,0,0,0,0
- 222      05800880 
- 222      06800180 
- 222      04800000 
- 222      00000000 
- 223 00a0 00000000 	    .hword   0x0000,0x0000,0x8004,0x8002,0x0000,0x8003,0x0000,0x8007,0x0000,0,0,0,0,0,0,0
- 223      04800280 
- 223      00000380 
- 223      00000780 
- 223      00000000 
- 224 00c0 00000780 	    .hword   0x0000,0x8007,0x0000,0x8005,0x0000,0x8009,0x8002,0x8006,0x0000,0,0,0,0,0,0,0
- 224      00000580 
- 224      00000980 
- 224      02800680 
- 224      00000000 
- 225 00e0 06800000 	    .hword   0x8006,0x0000,0x0000,0x0000,0x8008,0x0000,0x0000,0x0000,0x0000,0,0,0,0,0,0,0
- 225      00000000 
- 225      08800000 
+ 147              	region_col_loop:
+ 148 0118 090052E1 		cmp r2, r9
+ 149 011c 070000AA 		bge end_of_column
+ 150              	
+ 151 0120 81A2A0E1 		lsl r10, r1, #5						@ Desplazamiento fila (r1 * 32)
+ 152 0124 82B0A0E1 		lsl r11, r2, #1						@ Desplazamiento columna (r2 * 2)
+ 153 0128 0BC08AE0 		add r12, r10, r11					@ Desplazamiento total de la celda (fila + columna)
+ 154              	
+ 155 012c BC3090E1 		ldrh r3, [r0, r12]
+ 156 0130 0630C3E1 		bic r3, r3, r6						@ celda &= ~(1 << displace)
+ 157 0134 BC3080E1 		strh r3, [r0, r12]
+ 158 0138 012082E2 		add r2, r2, #1
+ 159 013c F5FFFFEA 		b region_col_loop
+ 160              	
+ 161              	end_of_column:
+ 162 0140 011081E2 		add r1, r1, #1
+ 163 0144 032042E2 		sub r2, r2, #3
+ 164 0148 F0FFFFEA 		b region_row_loop
+ 165              	
+ 166              	end_of_region:
+ 167 014c 1EFF2FE1 		bx lr
+ 168              	
+ 169              	start:
+ 170              	.arm    /* indicates that we are using the ARM instruction set */
+ 171              	
+ 172              	#------standard initial code
+ 173              	# --- Setup interrupt / exception vectors
+ 174 0150 FFFFFFEA 	      B       Reset_Handler
+ 175              	/* In this version we do not use the following handlers */
+ 176              	################################################################################
+ 177              	#-----------Undefined_Handler:
+ 178              	#      B       Undefined_Handler
+ 179              	#----------SWI_Handler:
+ 180              	#      B       SWI_Handler
+ 181              	#----------Prefetch_Handler:
+ 182              	#      B       Prefetch_Handler
+ 183              	#----------Abort_Handler:
+ 184              	#      B       Abort_Handler
+ 185              	#         NOP      /* Reserved vector */
+ 186              	#----------IRQ_Handler:
+ 187              	#      B       IRQ_Handler
+ 188              	#----------FIQ_Handler:
+ 189              	#      B       FIQ_Handler
+ 190              	
+ 191              	################################################################################
+ 192              	# Reset Handler:
+ 193              	# the processor starts executing this code after system reset
+ 194              	################################################################################
+ 195              	Reset_Handler:
+ 196              	#
+ 197 0154 01D9A0E3 	        MOV     sp, #0x4000      /*  set up stack pointer (r13) */
+ 198              	#
+ 199              	#  USING A .C FUNCTION
+ 200              	#
+ 201              	# FUNCTION CALL the parameters are stored in r0 and r1
+ 202              	# If there are 4 or less parameters when calling a C function the compiler
+ 203              	# assumes that they have been stored in r0-r3.
+ 204              	# If there are more parameters you have to store them in the data stack
+ 205              	# using the stack pointer
+ 206              	# function __c_copy is in copy.c
+ 207 0158 0C009FE5 	        LDR     r0, =cuadricula  /*  puntero a la @ inicial de la cuadricula */
+ 208              	
+ 209              	.extern     sudoku9x9
+ 210 015c 0C509FE5 	        ldr         r5, = sudoku9x9
+ 211 0160 0FE0A0E1 	        mov         lr, pc
+ 212 0164 15FF2FE1 	        bx          r5
+ 213              	
+ 214              	stop:
+ 215 0168 FEFFFFEA 	        B       stop        /*  end of program */
+ 216              	
+ 217              	################################################################################
+ 218              	.data
+ 219              	.ltorg     
+ 220              	.align 5    /* guarantees 32-byte alignment (2^5) */
+ 221              	
+ 222              	# huecos para cuadrar
+ 223              	cuadricula:
+ 224              	     /* 9 filas de 16 entradas para facilitar la visualizacion, 16 bits por celda */
+ 225 0000 05800000 	    .hword   0x8005,0x0000,0x0000,0x8003,0x0000,0x0000,0x0000,0x0000,0x0000,0, 0,0,0,0,0,0
+ 225      00000380 
  225      00000000 
  225      00000000 
- 226 0100 00000000 	    .hword   0x0000,0x0000,0x0000,0x0000,0x0000,0x8002,0x0000,0x0000,0x8001,0,0,0,0,0,0,0
+ 225      00000000 
+ 226 0020 00000000 	    .hword   0x0000,0x0000,0x0000,0x0000,0x8009,0x0000,0x0000,0x0000,0x8005,0,0,0,0,0,0,0
  226      00000000 
- 226      00000280 
+ 226      09800000 
  226      00000000 
- 226      01800000 
- 227              	
- 228              	.end
+ 226      05800000 
+ 227 0040 00000980 	    .hword   0x0000,0x8009,0x8006,0x8007,0x0000,0x8005,0x0000,0x8003,0x0000,0,0,0,0,0,0,0
+ 227      06800780 
+ 227      00000580 
+ 227      00000380 
+ 227      00000000 
+ 228 0060 00000880 	    .hword   0x0000,0x8008,0x0000,0x8009,0x0000,0x0000,0x8006,0x0000,0x0000,0,0,0,0,0,0,0
+ 228      00000980 
+ 228      00000000 
+ 228      06800000 
+ 228      00000000 
+ 229 0080 00000000 	    .hword   0x0000,0x0000,0x8005,0x8008,0x8006,0x8001,0x8004,0x0000,0x0000,0,0,0,0,0,0,0
+ 229      05800880 
+ 229      06800180 
+ 229      04800000 
+ 229      00000000 
+ 230 00a0 00000000 	    .hword   0x0000,0x0000,0x8004,0x8002,0x0000,0x8003,0x0000,0x8007,0x0000,0,0,0,0,0,0,0
+ 230      04800280 
+ 230      00000380 
+ 230      00000780 
+ 230      00000000 
+ 231 00c0 00000780 	    .hword   0x0000,0x8007,0x0000,0x8005,0x0000,0x8009,0x8002,0x8006,0x0000,0,0,0,0,0,0,0
+ 231      00000580 
+ 231      00000980 
+ 231      02800680 
+ 231      00000000 
+ 232 00e0 06800000 	    .hword   0x8006,0x0000,0x0000,0x0000,0x8008,0x0000,0x0000,0x0000,0x0000,0,0,0,0,0,0,0
+ 232      00000000 
+ 232      08800000 
+ 232      00000000 
+ 232      00000000 
+ 233 0100 00000000 	    .hword   0x0000,0x0000,0x0000,0x0000,0x0000,0x8002,0x0000,0x0000,0x8001,0,0,0,0,0,0,0
+ 233      00000000 
+ 233      00000280 
+ 233      00000000 
+ 233      01800000 
+ 234              	
+ 235              	.end
 DEFINED SYMBOLS
-       ../init_b.asm:162    .text:00000144 start
+       ../init_b.asm:169    .text:00000150 start
        ../init_b.asm:8      .text:00000000 sudoku_candidatos_propagar_arm
-       ../init_b.asm:15     .text:00000000 $a
-       ../init_b.asm:17     .text:00000004 loop_i
-       ../init_b.asm:56     .text:00000060 loop_i_end
-       ../init_b.asm:24     .text:00000014 loop_j
-       ../init_b.asm:53     .text:00000058 loop_j_end
-       ../init_b.asm:50     .text:00000050 skip_propagation
-       ../init_b.asm:63     .text:00000068 update_row_candidates
-       ../init_b.asm:83     .text:00000094 update_column_candidates
-       ../init_b.asm:65     .text:0000006c fila_loop
-       ../init_b.asm:80     .text:00000090 fin_fila
-       ../init_b.asm:85     .text:00000098 col_loop
-       ../init_b.asm:100    .text:000000bc fin_col
-       ../init_b.asm:104    .text:000000c0 update_region_candidates
-       ../init_b.asm:106    .text:000000c4 col_index
-       ../init_b.asm:114    .text:000000d8 col_index_end
-       ../init_b.asm:117    .text:000000dc row_index
-       ../init_b.asm:125    .text:000000f0 row_index_end
-       ../init_b.asm:132    .text:000000fc row_loop
-       ../init_b.asm:159    .text:00000140 row_end
-       ../init_b.asm:140    .text:00000110 column_loop
-       ../init_b.asm:156    .text:00000138 column_end
-       ../init_b.asm:188    .text:00000148 Reset_Handler
-       ../init_b.asm:216    .data:00000000 cuadricula
-       ../init_b.asm:207    .text:0000015c stop
-       ../init_b.asm:213    .data:00000000 $d
-       ../init_b.asm:211    .text:00000160 $d
+       ../init_b.asm:19     .text:00000000 loop_i
+       ../init_b.asm:20     .text:00000000 $a
+       ../init_b.asm:58     .text:00000064 loop_i_end
+       ../init_b.asm:26     .text:00000010 loop_j
+       ../init_b.asm:55     .text:0000005c loop_j_end
+       ../init_b.asm:52     .text:00000054 skip_propagation
+       ../init_b.asm:63     .text:0000006c update_row_candidates
+       ../init_b.asm:83     .text:00000098 update_column_candidates
+       ../init_b.asm:104    .text:000000c4 calc_region_indexes
+       ../init_b.asm:134    .text:00000110 update_region_candidates
+       ../init_b.asm:214    .text:00000168 stop
+       ../init_b.asm:65     .text:00000070 fila_loop
+       ../init_b.asm:80     .text:00000094 fin_fila
+       ../init_b.asm:85     .text:0000009c col_loop
+       ../init_b.asm:100    .text:000000c0 fin_col
+       ../init_b.asm:107    .text:000000cc col_index
+       ../init_b.asm:114    .text:000000e0 col_index_end
+       ../init_b.asm:119    .text:000000ec row_index
+       ../init_b.asm:126    .text:00000100 row_index_end
+       ../init_b.asm:143    .text:00000110 region_row_loop
+       ../init_b.asm:166    .text:0000014c end_of_region
+       ../init_b.asm:147    .text:00000118 region_col_loop
+       ../init_b.asm:161    .text:00000140 end_of_column
+       ../init_b.asm:195    .text:00000154 Reset_Handler
+       ../init_b.asm:223    .data:00000000 cuadricula
+       ../init_b.asm:220    .data:00000000 $d
+       ../init_b.asm:218    .text:0000016c $d
                    .debug_aranges:0000000c $d
 
 UNDEFINED SYMBOLS
