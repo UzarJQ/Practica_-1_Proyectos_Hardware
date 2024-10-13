@@ -3,6 +3,67 @@
 #        ENTRY                  /*  mark the first instruction to call */
 .global start
 .global sudoku_candidatos_propagar_arm
+.global sudoku_candidatos_init_arm
+
+################################################################################
+.arm
+sudoku_candidatos_init_arm:
+	push {r11, r12, lr}
+    @ r0 = cuadricula
+    @ r1 = fila
+    @ r2 = columna
+    @ r3 = valor actual
+    @ r4 = desplazamiento fila
+    @ r5 = desplazamiento columna
+    @ r6 = 0x1FF0 lista de candidatos
+    @ r7 = desplazamiento total
+
+    mov r1, #0
+    mov r6, #0x1F00               	@ Cargar parte alta de (0x1F00)
+    orr r6, r6, #0x00F0           	@ Combinar parte baja (0x00F0) para obtener 0x1FF0
+
+init_fila:
+    cmp r1, #9
+    bge fin_init_fila
+
+    lsl r4, r1, #5					@ Desplazamiento a siguiente fila (r1 * 32 bytes)
+
+    mov r2, #0
+init_columna:
+    cmp r2, #9
+    bge fin_init_columna
+
+    lsl r5, r2, #1					@ Desplazamiento a siguiente columna (r2 * 2 bytes)
+
+    add r7, r4, r5        			@ Desplazamiento total (fila + columna)
+
+    ldrh r3, [r0, r7]
+
+   	and r8, r3, #0x8000				@ Objeter valor de la pista
+	cmp r8, #0x8000					@ Si pista == 1 se omite la inicializacion de candidatos
+    bge skip_init
+
+    orr r3, r3, r6        			@ celda |= 0x1FF0 - Activar todos los candidatos
+    strh r3, [r0, r7]
+
+skip_init:
+    add r2, r2, #1
+    b init_columna
+
+fin_init_columna:
+    add r1, r1, #1
+    b init_fila
+
+fin_init_fila:
+	mov r1, #0
+	mov r2, #0
+
+	bl sudoku_candidatos_propagar_arm
+	b fin_init
+fin_init:
+	pop {r11, r12, lr}
+    bx lr
+
 
 @ Recorre la cuadricula llamando a las funciones de propagacion (fila, columna y region) SI la celda tiene un valor distinto a 0
 sudoku_candidatos_propagar_arm:
@@ -17,41 +78,40 @@ sudoku_candidatos_propagar_arm:
 	@ r7 = desplazamiento total (r4 + r5)
 	@ r10 = contador de celdas vacias
 	@ r8-r12 = registros de trabajo
-
 	mov r10, #0
 loop_i:
 	cmp r1, #9
 	bge loop_i_end
 
-	lsl r4, r1, #5					@ Desplazamiento a siguiente fila (r1 * 32 bytes)
+	lsl r4, r1, #5						@ Desplazamiento a siguiente fila (r1 * 32 bytes)
 
 	mov r2, #0
 loop_j:
 	cmp r2, #9
-	bge loop_j_end					@ Comprobar si se ha llegado a la ultima columna
+	bge loop_j_end						@ Comprobar si se ha llegado a la ultima columna
 
-	lsl r5, r2, #1					@ Desplazamiento a siguiente columna (r2 * 2 bytes)
+	lsl r5, r2, #1						@ Desplazamiento a siguiente columna (r2 * 2 bytes)
 
-	add r7, r4, r5					@ Desplazamiento total (fila + columna)
+	add r7, r4, r5						@ Desplazamiento total (fila + columna)
 	ldrh r3, [r0, r7]
 
-	and r3, r3, #0xF				@ Objeter valor actual de la celda (celda_leer_valor)
-	cmp r3, #0						@ Si valor == 0 se aumentan las celdas vacias y se omite la propagacion
+	and r3, r3, #0xF					@ Objeter valor actual de la celda (celda_leer_valor)
+	cmp r3, #0							@ Si valor == 0 se aumentan las celdas vacias y se omite la propagacion
 	beq empty_cell
 
-	add r8, r3, #3					@ r8 = displace = (3 + r3)
+	add r8, r3, #3						@ r8 = displace = (3 + r3)
 	mov r6, #1
-	lsl r6, r6, r8					@ desplazar bit a la izquierda r8 posiciones
+	lsl r6, r6, r8						@ desplazar bit a la izquierda r8 posiciones
 
-	push {r1, r2, r10, lr}			@ Backup de indices de fila y columna, y el contador de celdas vacias
+	push {r1, r2, r10, lr}				@ Backup de indices de fila y columna, y el contador de celdas vacias
 
-	bl update_row_candidates
+	bl arm_update_row_candidates		@ Actualizar filas
 
-	bl update_column_candidates
+	bl arm_update_column_candidates		@ Actualizar columnas
 
-	bl calc_region_indexes
-	bl update_region_candidates
-	pop {r1, r2, r10, lr}			@ Restaurar valor de los indices y las celdas vacias
+	bl arm_calc_region_indexes				@ Calcular indices de la region
+	bl arm_update_region_candidates		@ Actualizar region
+	pop {r1, r2, r10, lr}				@ Restaurar valor de los indices y las celdas vacias
 
 	b next_column
 
@@ -66,12 +126,12 @@ loop_j_end:
 	add r1, r1, #1
 	b loop_i
 loop_i_end:
-	pop {r0, r5, r11, r12, lr}					@ Restaurar valor de los punteros a funciones y cuadricula
-	mov r0, r10									@ Almacenar el contador de celdas vacias en r0 para devolverse como resultado de la funcion
-	bx lr										@ Devolver el control a la funcion en C
+	pop {r0, r5, r11, r12, lr}			@ Restaurar valor de los punteros a funciones y cuadricula
+	mov r0, r10							@ Almacenar el contador de celdas vacias en r0 para devolverse como resultado de la funcion
+	bx lr								@ Devolver el control a la funcion en C
 
 
-update_row_candidates:
+arm_update_row_candidates:
     mov r8, #0
 fila_loop:
     cmp r8, #9
@@ -91,7 +151,7 @@ fila_loop:
 fin_fila:
     bx lr
 
-update_column_candidates:
+arm_update_column_candidates:
     mov r8, #0
 col_loop:
     cmp r8, #9
@@ -112,7 +172,7 @@ fin_col:
     bx lr
 
 
-calc_region_indexes:
+arm_calc_region_indexes:
 	mov r8, r2
 	mov r9, #0
 col_index:
@@ -142,7 +202,7 @@ row_index_end:
 
 	bx lr
 
-update_region_candidates:
+arm_update_region_candidates:
 	@ r0 = cuadricula
 	@ r1 = indice inicial region (fila)
 	@ r2 = indice inicial region (columna)
@@ -242,6 +302,5 @@ cuadricula:
     .hword   0x0000,0x8007,0x0000,0x8005,0x0000,0x8009,0x8002,0x8006,0x0000,0,0,0,0,0,0,0
     .hword   0x8006,0x0000,0x0000,0x0000,0x8008,0x0000,0x0000,0x0000,0x0000,0,0,0,0,0,0,0
     .hword   0x0000,0x0000,0x0000,0x0000,0x0000,0x8002,0x0000,0x0000,0x8001,0,0,0,0,0,0,0
-
 .end
 #        END
