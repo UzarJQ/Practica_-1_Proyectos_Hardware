@@ -88,19 +88,31 @@ init_candidatos(CELDA cuadricula[NUM_FILAS][NUM_COLUMNAS]){
 // Recorrer la cuadricula aumentando la cantidad de celdas vacias (valor 0) y llamando a la funcion para propagar (si existe un valor)
 void
 propagar_if_value(CELDA cuadricula[NUM_FILAS][NUM_COLUMNAS], int *celdas_vacias){
-	int row=0;
-	while(row < NUM_FILAS){
-		int col=0;
-		while(col < NUM_COLUMNAS - 7){
-			uint8_t valor_actual = celda_leer_valor(cuadricula[row][col]);
-			if(valor_actual == 0x0000){
-				(*celdas_vacias)++;
-			} else {
-				sudoku_candidatos_propagar_c(cuadricula, row, col, valor_actual);
+	char version_propagar = 'A';
+	uint8_t valor_inicial = celda_leer_valor(cuadricula[0][0]);
+
+	if(version_propagar == 'A'){
+	    *celdas_vacias = sudoku_candidatos_propagar_arm(cuadricula, 0, 0, valor_inicial);
+	 } else {
+		int row=0;
+		while(row < NUM_FILAS){
+			int col=0;
+			while(col < NUM_COLUMNAS - 7){
+				uint8_t valor_actual = celda_leer_valor(cuadricula[row][col]);
+				if(valor_actual == 0x0000){
+					(*celdas_vacias)++;
+				} else {
+					if(version_propagar == 'C'){
+						sudoku_candidatos_propagar_c(cuadricula, row, col, valor_actual);
+					}
+					if(version_propagar == 'T'){
+						sudoku_candidatos_propagar_thumb(cuadricula, 0, 0);
+					}
+				}
+				col++;
 			}
-			col++;
+			row++;
 		}
-		row++;
 	}
 }
 
@@ -111,21 +123,12 @@ propagar_if_value(CELDA cuadricula[NUM_FILAS][NUM_COLUMNAS], int *celdas_vacias)
 static int
 sudoku_candidatos_init_c(CELDA cuadricula[NUM_FILAS][NUM_COLUMNAS])
 {
-    uint8_t valor_inicial = celda_leer_valor(cuadricula[0][0]);
+
  	int celdas_vacias = 0;
 
     init_candidatos(cuadricula);
 
- 	char version_propagar = 'A';
-
-    /* Tres configuraciones para *propagar* */
- 	if(version_propagar == 'C'){
-    	propagar_if_value(cuadricula, &celdas_vacias);
- 	}
-
- 	if(version_propagar == 'A'){
-    	celdas_vacias = sudoku_candidatos_propagar_arm(cuadricula, 0, 0, valor_inicial);
- 	}
+    propagar_if_value(cuadricula, &celdas_vacias);
 
     return celdas_vacias;
 }

@@ -10,46 +10,47 @@ LOAD ./init_b.o
 LOAD ./sudoku_2024.o
                 0x0c000000                . = 0xc000000
 
-.text           0x0c000000      0xb38
+.text           0x0c000000      0xd10
  *(.text)
- .text          0x0c000000      0x1fc ./init_b.o
-                0x0c000000                sudoku_candidatos_init_arm
-                0x0c000070                sudoku_candidatos_propagar_arm
-                0x0c0001d8                start
- .text          0x0c0001fc      0x93c ./sudoku_2024.o
-                0x0c000264                sudoku_candidatos_propagar_c
-                0x0c0004fc                init_candidatos
-                0x0c0005e8                propagar_if_value
-                0x0c000ad4                sudoku9x9
-                0x0c000b38                _bdata = .
+ .text          0x0c000000      0x3b0 ./init_b.o
+                0x0c000000                sudoku_candidatos_propagar_thumb
+                0x0c000198                sudoku_candidatos_init_arm
+                0x0c000224                sudoku_candidatos_propagar_arm
+                0x0c00038c                start
+ .text          0x0c0003b0      0x960 ./sudoku_2024.o
+                0x0c000418                sudoku_candidatos_propagar_c
+                0x0c0006b0                init_candidatos
+                0x0c00079c                propagar_if_value
+                0x0c000cac                sudoku9x9
+                0x0c000d10                _bdata = .
 
-.glue_7         0x0c000b38        0x0
+.glue_7         0x0c000d10        0x0
  .glue_7        0x00000000        0x0 linker stubs
 
-.glue_7t        0x0c000b38        0x0
+.glue_7t        0x0c000d10        0x0
  .glue_7t       0x00000000        0x0 linker stubs
 
-.vfp11_veneer   0x0c000b38        0x0
+.vfp11_veneer   0x0c000d10        0x0
  .vfp11_veneer  0x00000000        0x0 linker stubs
 
-.v4_bx          0x0c000b38        0x0
+.v4_bx          0x0c000d10        0x0
  .v4_bx         0x00000000        0x0 linker stubs
 
-.data           0x0c000b40      0x120
+.data           0x0c000d20      0x120
  *(.data)
- .data          0x0c000b40      0x120 ./init_b.o
- .data          0x0c000c60        0x0 ./sudoku_2024.o
-                0x0c000c60                _edata = .
+ .data          0x0c000d20      0x120 ./init_b.o
+ .data          0x0c000e40        0x0 ./sudoku_2024.o
+                0x0c000e40                _edata = .
 
 .rodata
  *(.rodata)
-                0x0c000c60                _bbss = .
+                0x0c000e40                _bbss = .
 
-.bss            0x0c000c60        0x0
+.bss            0x0c000e40        0x0
  *(.bss)
- .bss           0x0c000c60        0x0 ./init_b.o
- .bss           0x0c000c60        0x0 ./sudoku_2024.o
-                0x0c000c60                _ebss = .
+ .bss           0x0c000e40        0x0 ./init_b.o
+ .bss           0x0c000e40        0x0 ./sudoku_2024.o
+                0x0c000e40                _ebss = .
 OUTPUT(PH_Sudoku.elf elf32-littlearm)
 
 .ARM.attributes
@@ -63,13 +64,13 @@ OUTPUT(PH_Sudoku.elf elf32-littlearm)
  .comment       0x00000000       0x2a ./sudoku_2024.o
                                  0x2b (size before relaxing)
 
-.debug_line     0x00000000      0x51a
- .debug_line    0x00000000       0xc3 ./init_b.o
- .debug_line    0x000000c3      0x457 ./sudoku_2024.o
+.debug_line     0x00000000      0x58a
+ .debug_line    0x00000000      0x130 ./init_b.o
+ .debug_line    0x00000130      0x45a ./sudoku_2024.o
 
-.debug_info     0x00000000      0x51f
+.debug_info     0x00000000      0x529
  .debug_info    0x00000000       0x63 ./init_b.o
- .debug_info    0x00000063      0x4bc ./sudoku_2024.o
+ .debug_info    0x00000063      0x4c6 ./sudoku_2024.o
 
 .debug_abbrev   0x00000000      0x126
  .debug_abbrev  0x00000000       0x14 ./init_b.o

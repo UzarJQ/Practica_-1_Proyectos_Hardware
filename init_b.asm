@@ -4,6 +4,178 @@
 .global start
 .global sudoku_candidatos_propagar_arm
 .global sudoku_candidatos_init_arm
+.global sudoku_candidatos_propagar_thumb
+
+################################################################################
+sudoku_candidatos_propagar_thumb:
+
+    PUSH {r3-r7, LR}          // Guarda los registros r3-r7 y el Link Register (LR) en la pila
+
+    // Inicialización de variables
+    mov r4, #0                // Inicializa r4 en 0, se usará para calcular el desplazamiento de la celda
+    mov r5, r1                // r5 = fila
+    mov r6, r2                // r6 = columna
+
+    // Cálculo del desplazamiento en la cuadrícula basado en fila y columna
+    lsl r5, #5                // Multiplica fila por 32 (2^5) para calcular el desplazamiento de la fila
+    add r4, r4, r5            // Añade el desplazamiento de la fila a r4
+    lsl r6, #1                // Multiplica columna por 2 (2 bytes por celda)
+    add r4, r4, r6            // Añade el desplazamiento de la columna a r4
+
+    // Cargar el valor de la celda actual y aislar los 4 bits de menor peso
+    ldrh r3, [r0, r4]         // Carga el valor de la celda en r3
+    mov r4, #15               // Máscara de 4 bits (0xF)
+    and r3, r3, r4            // Extrae los 4 bits de menor peso (valor fijo de la celda)
+
+    // Cálculo del patrón de exclusión para eliminar candidatos
+    sub r3, r3, #1            // Resta 1 al valor de la celda
+    add r3, r3, #4            // Añade 4 para obtener el índice del bit correspondiente al valor de la celda
+    mov r4, #1                // Inicializa r4 con 1
+    lsl r4, r4, r3            // Desplaza 1 hacia la izquierda por el valor del índice calculado
+    mvn r7, r4                // Complementa el valor de r4, creando una máscara de exclusión
+
+
+  // Bucle para recorrer las filas
+    mov r3, #0                // Inicializa el contador de filas a 0
+recorrer_filas_th:
+    cmp r3, #9                // Compara el contador de filas con 9
+    beq fin_recorrer_filas_th  // Si es igual a 9, termina el bucle de filas
+
+    cmp r3, r2                // Compara la fila actual con la fila de la celda que se está propagando
+    beq siguiente_fila_th      // Si es la misma fila, salta a la siguiente fila
+
+    // Cálculo de la dirección de la celda en la fila actual
+    mov r5, r1                // Carga la fila en r5
+    mov r6, r3                // Carga el contador de filas en r6
+    mov r4, #0                // Inicializa r4 para calcular el desplazamiento
+
+    lsl r5, #5                // Multiplica fila por 32
+    add r4, r4, r5            // Añade el desplazamiento de la fila a r4
+    lsl r6, #1                // Multiplica columna por 2
+    add r4, r4, r6            // Añade el desplazamiento de la columna a r4
+
+    // Cargar el valor de la celda y aplicar la máscara de exclusión
+    ldrh r5, [r0, r4]         // Carga el valor de la celda en r5
+    mov r6, r5                // Guarda el valor original de la celda en r6
+    and r5, r5, r7            // Aplica la máscara de exclusión a los candidatos
+    cmp r5, r6                // Compara el valor nuevo con el original
+    beq siguiente_fila_th      // Si no cambió, pasa a la siguiente fila
+    strh r5, [r0, r4]         // Si cambió, guarda el nuevo valor en la celda
+
+siguiente_fila_th:
+    add r3, #1                // Incrementa el contador de filas
+    b recorrer_filas_th        // Vuelve al inicio del bucle de filas
+
+fin_recorrer_filas_th:
+
+    // Bucle para recorrer las columnas
+    mov r3, #0                // Inicializa el contador de columnas a 0
+recorrer_columnas_th:
+    cmp r3, #9                // Compara el contador de columnas con 9
+    beq fin_recorrer_columnas_th // Si es igual a 9, termina el bucle de columnas
+
+    cmp r3, r1                // Compara la columna actual con la columna de la celda que se está propagando
+    beq siguiente_columna_th   // Si es la misma columna, salta a la siguiente columna
+
+    // Cálculo de la dirección de la celda en la columna actual
+    mov r4, #0                // Inicializa r4 para calcular el desplazamiento
+    mov r5, r3                // Carga el contador de columnas en r5
+    mov r6, r2                // Carga la columna en r6
+
+    lsl r5, #5                // Multiplica fila por 32
+    add r4, r4, r5            // Añade el desplazamiento de la fila a r4
+    lsl r6, #1                // Multiplica columna por 2
+    add r4, r4, r6            // Añade el desplazamiento de la columna a r4
+
+    // Cargar el valor de la celda y aplicar la máscara de exclusión
+    ldrh r5, [r0, r4]         // Carga el valor de la celda en r5
+    mov r6, r5                // Guarda el valor original de la celda en r6
+    and r5, r5, r7            // Aplica la máscara de exclusión a los candidatos
+    cmp r5, r6                // Compara el valor nuevo con el original
+    beq siguiente_columna_th   // Si no cambió, pasa a la siguiente columna
+    strh r5, [r0, r4]         // Si cambió, guarda el nuevo valor en la celda
+
+siguiente_columna_th:
+    add r3, #1                // Incrementa el contador de columnas
+    b recorrer_columnas_th     // Vuelve al inicio del bucle de columnas
+
+fin_recorrer_columnas_th:
+
+    // Cálculo para iterar sobre la región 3x3 (bloque del Sudoku)
+    mov r3, r1                // Carga la fila en r3
+for_resto_fila_th:
+    cmp r3, #2                // Compara si la fila es menor o igual a 2
+    ble fin_resto_fila_th      // Si lo es, termina el bucle
+    sub r3, r3, #3            // Resta 3 para calcular el inicio de la región
+    b for_resto_fila_th        // Repite hasta que r3 <= 2
+
+fin_resto_fila_th:
+    sub r3, r1, r3            // Corrige el valor de r3
+
+    mov r4, r2                // Carga la columna en r4
+for_resto_columna_th:
+    cmp r4, #2                // Compara si la columna es menor o igual a 2
+    ble fin_resto_columna_th   // Si lo es, termina el bucle
+    sub r4, r4, #3            // Resta 3 para calcular el inicio de la región
+    b for_resto_columna_th     // Repite hasta que r4 <= 2
+
+fin_resto_columna_th:
+    sub r4, r2, r4            // Corrige el valor de r4
+
+    // Recorre las celdas dentro de la región 3x3
+    mov r5, r3                // Carga el inicio de la región en r5
+    mov r6, r4                // Carga el inicio de la región en r6
+
+    add r3, #3                // Define el límite de la región en filas
+    add r4, #3                // Define el límite de la región en columnas
+
+recorrer_region_fil_th:
+    cmp r5, r3                // Compara r5 con el límite de la región en filas
+    beq fin_recorrer_region_fil_th // Si r5 llega al límite, termina el bucle de la región
+
+    recorrer_region_col_th:
+        cmp r6, r4            // Compara r6 con el límite de la región en columnas
+        beq fin_recorrer_region_col_th // Si r6 llega al límite, termina el bucle de la región
+
+        // Evita la celda que inició la propagación
+        cmp r5, r1            // Compara si la fila es la misma que la original
+        beq siguiente_region_col_th // Si es la misma, salta a la siguiente columna
+        cmp r6, r2            // Compara si la columna es la misma que la original
+        beq siguiente_region_col_th // Si es la misma, salta a la siguiente columna
+
+        // Cálculo de la dirección de la celda dentro de la región
+        push {r2-r4}          // Guarda los registros temporales
+        mov r2, #0            // Inicializa r2 en 0
+        mov r3, r5            // Carga r5 en r3 para calcular el desplazamiento de la fila
+        mov r4, r6            // Carga r6 en r4 para calcular el desplazamiento de la columna
+
+        lsl r3, #5            // Multiplica fila por 32
+        add r2, r2, r3        // Añade el desplazamiento de la fila a r2
+        lsl r4, #1            // Multiplica columna por 2
+        add r2, r2, r4        // Añade el desplazamiento de la columna a r2
+
+        // Cargar el valor de la celda y aplicar la máscara de exclusión
+        ldrh r3, [r0, r2]     // Carga el valor de la celda en r3
+        mov r4, r3            // Guarda el valor original de la celda en r4
+        and r4, r4, r7        // Aplica la máscara de exclusión a los candidatos
+        cmp r3, r4            // Compara el valor nuevo con el original
+        beq siguiente_region_col_th2 // Si no cambió, pasa a la siguiente columna
+        strh r4, [r0, r2]     // Si cambió, guarda el nuevo valor en la celda
+
+siguiente_region_col_th2:
+        pop {r2-r4}           // Restaura los registros temporales
+siguiente_region_col_th:
+        add r6, #1            // Incrementa el contador de columnas
+        b recorrer_region_col_th // Vuelve al inicio del bucle de columnas en la región
+
+fin_recorrer_region_col_th:
+    add r5, #1                // Incrementa el contador de filas
+    sub r6, r4, #3            // Reinicia el contador de columnas al inicio de la región
+    b recorrer_region_fil_th   // Vuelve al inicio del bucle de filas en la región
+
+fin_recorrer_region_fil_th:
+    pop {r3-r7}               // Restaura los registros
+    bx lr                     // Retorna de la función
 
 ################################################################################
 .arm
@@ -58,8 +230,20 @@ fin_init_fila:
 	mov r1, #0
 	mov r2, #0
 
+	mov r10, #2								@ Selector de version propagar (1 = ARM, 2 = THUMB)
+	cmp r10, #1
+	beq propagar_arm
+
+	cmp r10, #2
+	beq propagar_thumb
+
+propagar_arm:
 	bl sudoku_candidatos_propagar_arm
 	b fin_init
+propagar_thumb:
+	bl sudoku_candidatos_propagar_thumb
+	b fin_init
+
 fin_init:
 	pop {r11, r12, lr}
     bx lr
@@ -287,7 +471,7 @@ stop:
 
 ################################################################################
 .data
-.ltorg     
+.ltorg
 .align 5    /* guarantees 32-byte alignment (2^5) */
 
 # huecos para cuadrar
