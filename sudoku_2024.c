@@ -34,22 +34,30 @@ activar_error(CELDA celda)
 void
 sudoku_candidatos_propagar_c(CELDA cuadricula[NUM_FILAS][NUM_COLUMNAS], int fila, int columna, uint8_t valor)
 {
+
 	int displace = 3 + (int)valor;
 
+	/* recorrer cada fila desactivando el candidato de la lista */
+	    int row = 0;
+	    while(row < NUM_FILAS){
+	    	uint16_t celda = cuadricula[row][columna];
+	    	if(((celda & 0x8000) != 0x8000) || row != fila){
+	    		celda &= ~(1 << displace);
+	    		cuadricula[row][columna] = celda;
+	    	}
+	    	row++;
+	    }
+
     /* recorrer cada columna desactivando el candidato de la lista */
-    int col = 0;
-    while(col < NUM_COLUMNAS - 7){
-    	cuadricula[fila][col] &= ~(1 << displace);	// Desactivar el candidato de la lista con una operación NAND
-    	col++;
-    }
-
-    /* recorrer cada fila desactivando el candidato de la lista */
-    int row = 0;
-    while(row < NUM_FILAS){
-    	cuadricula[row][columna] &= ~(1 << displace);
-    	row++;
-    }
-
+	int col = 0;
+	while(col < NUM_COLUMNAS - 7){
+	    uint16_t celda = cuadricula[fila][col];
+	    if(((celda & 0x8000) != 0x8000) || col != columna){
+	        celda &= ~(1 << displace);  // Desactivar el candidato de la lista con una operación NAND
+	        cuadricula[fila][col] = celda;
+	    }
+	    col++;
+	}
 
     /* Calcular la posicion inicial para cada region 3x3 correspondiente */
     int row_start = (fila / 3) * 3;
@@ -60,75 +68,65 @@ sudoku_candidatos_propagar_c(CELDA cuadricula[NUM_FILAS][NUM_COLUMNAS], int fila
     while(row < (row_start + 3)){
     	int col = col_start;
     	while(col < (col_start + 3)){
-    		cuadricula[row][col] &= ~(1 << displace);
-    		col++;
+    		uint16_t celda = cuadricula[row][col];
+    		if(((celda & 0x8000) != 0x8000) || row != fila || col != columna){
+    			celda &= ~(1 << displace);
+    			cuadricula[row][col] = celda;
+    		}
+   			col++;
     	}
     	row++;
     }
 }
-
-/* Recorrer la cuadricula inicializando los candidatos de las celdas */
-void
-init_candidatos(CELDA cuadricula[NUM_FILAS][NUM_COLUMNAS]){
-	int row=0;
-	while(row < NUM_FILAS){
-		int col=0;
-		while(col < NUM_COLUMNAS - 7){
-
-			int pista = cuadricula[row][col] & 0x8000;
-			if(pista == 0){
-				cuadricula[row][col] |= 0x1FF0;
-			}
-			col++;
-		}
-		row++;
-	}
-}
-
-// Recorrer la cuadricula aumentando la cantidad de celdas vacias (valor 0) y llamando a la funcion para propagar (si existe un valor)
-void
-propagar_if_value(CELDA cuadricula[NUM_FILAS][NUM_COLUMNAS], int *celdas_vacias){
-	char version_propagar = 'A';
-	uint8_t valor_inicial = celda_leer_valor(cuadricula[0][0]);
-
-	if(version_propagar == 'A'){
-	    *celdas_vacias = sudoku_candidatos_propagar_arm(cuadricula, 0, 0, valor_inicial);
-	 } else {
-		int row=0;
-		while(row < NUM_FILAS){
-			int col=0;
-			while(col < NUM_COLUMNAS - 7){
-				uint8_t valor_actual = celda_leer_valor(cuadricula[row][col]);
-				if(valor_actual == 0x0000){
-					(*celdas_vacias)++;
-				} else {
-					if(version_propagar == 'C'){
-						sudoku_candidatos_propagar_c(cuadricula, row, col, valor_actual);
-					}
-					if(version_propagar == 'T'){
-						sudoku_candidatos_propagar_thumb(cuadricula, 0, 0);
-					}
-				}
-				col++;
-			}
-			row++;
-		}
-	}
-}
-
 /* *****************************************************************************
  * calcula todas las listas de candidatos (9x9)
  * necesario tras borrar o cambiar un valor (listas corrompidas)
  * retorna el numero de celdas vacias */
 static int
-sudoku_candidatos_init_c(CELDA cuadricula[NUM_FILAS][NUM_COLUMNAS])
+sudoku_candidatos_init_c(CELDA cuadricula[NUM_FILAS][NUM_COLUMNAS], int version_propagar)
 {
+ 	/* Recorrer la cuadricula celda a celda inicializando la lista de candidatos */
+ 	int row=0;
+ 		while(row < NUM_FILAS){
+ 			int col=0;
+ 			while(col < NUM_COLUMNAS - 7){
+ 				int pista = cuadricula[row][col] & 0x8000;
+ 				if(pista == 0){
+ 					cuadricula[row][col] |= 0x1FF0;
+ 				}
+ 				col++;
+ 			}
+ 			row++;
+ 		}
 
+
+ 	/* Recorer la cuadricula celda a celda:
+ 	 * Si la celda tiene valor => sudoku_candidatos_propagar_c
+ 	 * Si no tiene valor => actualizar contador de celdas vacías
+ 	 */
  	int celdas_vacias = 0;
-
-    init_candidatos(cuadricula);
-
-    propagar_if_value(cuadricula, &celdas_vacias);
+ 	row = 0;
+ 	while(row < NUM_FILAS){
+ 		int col=0;
+ 		while(col < NUM_COLUMNAS - 7){
+ 			uint8_t valor_actual = celda_leer_valor(cuadricula[row][col]);
+ 			if(valor_actual == 0x0000){
+ 				celdas_vacias++;
+ 			} else {
+ 				if(version_propagar == 0){
+ 					sudoku_candidatos_propagar_c(cuadricula, row, col, valor_actual);
+ 				}
+ 				if(version_propagar == 1){
+ 					sudoku_candidatos_propagar_arm(cuadricula, row, col, valor_actual);
+ 				}
+ 				if(version_propagar == 2){
+ 					sudoku_candidatos_propagar_thumb(cuadricula, row, col, valor_actual);
+ 				}
+ 			}
+ 			col++;
+ 		}
+ 		row++;
+ 	}
 
     return celdas_vacias;
 }
@@ -186,18 +184,19 @@ cuadricula_candidatos_verificar(CELDA cuadricula[NUM_FILAS][NUM_COLUMNAS],int ro
 }
 
 /* Recorre la cuadricula y para cada celda llama a cuadricula_candidatos_verificar */
-static void
+static int
 verificar_lista_calculada(CELDA cuadricula[NUM_FILAS][NUM_COLUMNAS]){
 	int errors = 0;
-	    int row = 0;
-	    while(row < NUM_FILAS){
-			int col = 0;
-	    	while(col < NUM_COLUMNAS - 7){
-	    		cuadricula_candidatos_verificar(cuadricula, row, col, &errors);
-	    		col++;
-	    	}
-	    	row++;
-	    }
+	int row = 0;
+	while(row < NUM_FILAS){
+		int col = 0;
+		while(col < NUM_COLUMNAS - 7){
+			cuadricula_candidatos_verificar(cuadricula, row, col, &errors);
+			col++;
+		}
+		row++;
+	}
+	return errors;
 }
 
 /* *****************************************************************************
@@ -211,18 +210,24 @@ void
 sudoku9x9(CELDA cuadricula[NUM_FILAS][NUM_COLUMNAS], char *ready)
 {
     int celdas_vacias;
-    char version_init = 'C';
 
     // Dos configuraciones para *init*
-    if(version_init == 'C'){
-    	celdas_vacias = sudoku_candidatos_init_c(cuadricula);
-    }
-    if(version_init == 'A'){
-    	celdas_vacias = sudoku_candidatos_init_arm(cuadricula);
-    }
 
-    /* verificar que la lista de candidatos calculada es correcta */
+    celdas_vacias = sudoku_candidatos_init_c(cuadricula, 0); // Version C + C
     verificar_lista_calculada(cuadricula);
-    /* repetir para otras versiones (C optimizado, ARM, THUMB) */
-}
 
+    celdas_vacias = sudoku_candidatos_init_c(cuadricula, 1); // Version C + ARM
+    verificar_lista_calculada(cuadricula);
+
+    //celdas_vacias = sudoku_candidatos_init_c(cuadricula, 2); // Version C + Thumb
+    //verificar_lista_calculada(cuadricula);
+
+    celdas_vacias = sudoku_candidatos_init_arm(cuadricula, 0); // Version ARM + C
+    verificar_lista_calculada(cuadricula);
+
+    celdas_vacias = sudoku_candidatos_init_arm(cuadricula, 1); // Version ARM + ARM
+    verificar_lista_calculada(cuadricula);
+
+    //celdas_vacias = sudoku_candidatos_init_arm(cuadricula, 2); // Version ARM + Thumb
+    //verificar_lista_calculada(cuadricula);
+}

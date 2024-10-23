@@ -7,180 +7,193 @@
 .global sudoku_candidatos_propagar_thumb
 
 ################################################################################
+.thumb
+
 sudoku_candidatos_propagar_thumb:
+    @ r0 = cuadricula
+    @ r1 = indice fila
+    @ r2 = indice columna
+    @ r3 = valor actual celda
+    @ r4 = desplazamiento de la fila
+    @ r5 = desplazamiento de la columna
+    @ r6 = bit desplazado (se usara para desactivar los candidatos)
+    @ r7 = desplazamiento total (r4 + r5)
 
-    PUSH {r3-r7, LR}          // Guarda los registros r3-r7 y el Link Register (LR) en la pila
+    movs r6, #0							@ Inicializar contador de celdas vacías a 0
 
-    // Inicialización de variables
-    mov r4, #0                // Inicializa r4 en 0, se usará para calcular el desplazamiento de la celda
-    mov r5, r1                // r5 = fila
-    mov r6, r2                // r6 = columna
+thumb_loop_i:
+    cmp r1, #9
+    bge thumb_loop_i_end
 
-    // Cálculo del desplazamiento en la cuadrícula basado en fila y columna
-    lsl r5, #5                // Multiplica fila por 32 (2^5) para calcular el desplazamiento de la fila
-    add r4, r4, r5            // Añade el desplazamiento de la fila a r4
-    lsl r6, #1                // Multiplica columna por 2 (2 bytes por celda)
-    add r4, r4, r6            // Añade el desplazamiento de la columna a r4
+    lsl r4, r1, #5						@ Desplazamiento a siguiente fila (r1 * 32 bytes)
 
-    // Cargar el valor de la celda actual y aislar los 4 bits de menor peso
-    ldrh r3, [r0, r4]         // Carga el valor de la celda en r3
-    mov r4, #15               // Máscara de 4 bits (0xF)
-    and r3, r3, r4            // Extrae los 4 bits de menor peso (valor fijo de la celda)
+    mov r3, #0
+thumb_loop_j:
+    cmp r2, #9
+    bge thumb_loop_j_end
 
-    // Cálculo del patrón de exclusión para eliminar candidatos
-    sub r3, r3, #1            // Resta 1 al valor de la celda
-    add r3, r3, #4            // Añade 4 para obtener el índice del bit correspondiente al valor de la celda
-    mov r4, #1                // Inicializa r4 con 1
-    lsl r4, r4, r3            // Desplaza 1 hacia la izquierda por el valor del índice calculado
-    mvn r7, r4                // Complementa el valor de r4, creando una máscara de exclusión
+    lsl r5, r2, #1						@ Desplazamiento a siguiente columna (r2 * 2 bytes)
 
+    add r7, r4, r5                      @ Desplazamiento total (fila + columna)
+    ldrh r3, [r0, r7]
 
-  // Bucle para recorrer las filas
-    mov r3, #0                // Inicializa el contador de filas a 0
-recorrer_filas_th:
-    cmp r3, #9                // Compara el contador de filas con 9
-    beq fin_recorrer_filas_th  // Si es igual a 9, termina el bucle de filas
+	push {r6, lr}
 
-    cmp r3, r2                // Compara la fila actual con la fila de la celda que se está propagando
-    beq siguiente_fila_th      // Si es la misma fila, salta a la siguiente fila
+	mov r6, #7
+    and r3, r3, r6						@ Obtener valor actual de la celda
+    cmp r3, #0							@ Si valor == 0, aumentar celdas vacías y omitir propagación
+    beq empty_cell_t
 
-    // Cálculo de la dirección de la celda en la fila actual
-    mov r5, r1                // Carga la fila en r5
-    mov r6, r3                // Carga el contador de filas en r6
-    mov r4, #0                // Inicializa r4 para calcular el desplazamiento
+    add r3, #3                      	@ r8 = displace = (3 + r3)
+    mov r6, #1
+    lsl r6, r6, r3						@ Desplazar bit a la izquierda r3 posiciones
 
-    lsl r5, #5                // Multiplica fila por 32
-    add r4, r4, r5            // Añade el desplazamiento de la fila a r4
-    lsl r6, #1                // Multiplica columna por 2
-    add r4, r4, r6            // Añade el desplazamiento de la columna a r4
+    push {r1, r2, lr}					@ Guardar índices de fila y columna, y el contador de celdas vacías
 
-    // Cargar el valor de la celda y aplicar la máscara de exclusión
-    ldrh r5, [r0, r4]         // Carga el valor de la celda en r5
-    mov r6, r5                // Guarda el valor original de la celda en r6
-    and r5, r5, r7            // Aplica la máscara de exclusión a los candidatos
-    cmp r5, r6                // Compara el valor nuevo con el original
-    beq siguiente_fila_th      // Si no cambió, pasa a la siguiente fila
-    strh r5, [r0, r4]         // Si cambió, guarda el nuevo valor en la celda
+    bl update_row_candidates_thumb
+    bl update_column_candidates_thumb
 
-siguiente_fila_th:
-    add r3, #1                // Incrementa el contador de filas
-    b recorrer_filas_th        // Vuelve al inicio del bucle de filas
+    pop {r1, r2, pc}
 
-fin_recorrer_filas_th:
+	push {r1, r2, lr}
 
-    // Bucle para recorrer las columnas
-    mov r3, #0                // Inicializa el contador de columnas a 0
-recorrer_columnas_th:
-    cmp r3, #9                // Compara el contador de columnas con 9
-    beq fin_recorrer_columnas_th // Si es igual a 9, termina el bucle de columnas
+    bl calc_region_indexes_thumb
+    bl update_region_candidates_thumb
 
-    cmp r3, r1                // Compara la columna actual con la columna de la celda que se está propagando
-    beq siguiente_columna_th   // Si es la misma columna, salta a la siguiente columna
+    pop {r1, r2, pc}				@ Restaurar índices y contador de celdas vacías
+    b next_column_t
 
-    // Cálculo de la dirección de la celda en la columna actual
-    mov r4, #0                // Inicializa r4 para calcular el desplazamiento
-    mov r5, r3                // Carga el contador de columnas en r5
-    mov r6, r2                // Carga la columna en r6
+empty_cell_t:
+	pop {r6, pc}
+    add r6, r6, #1
+    b next_column_t
 
-    lsl r5, #5                // Multiplica fila por 32
-    add r4, r4, r5            // Añade el desplazamiento de la fila a r4
-    lsl r6, #1                // Multiplica columna por 2
-    add r4, r4, r6            // Añade el desplazamiento de la columna a r4
+next_column_t:
+    add r2, r2, #1
+    b thumb_loop_j
 
-    // Cargar el valor de la celda y aplicar la máscara de exclusión
-    ldrh r5, [r0, r4]         // Carga el valor de la celda en r5
-    mov r6, r5                // Guarda el valor original de la celda en r6
-    and r5, r5, r7            // Aplica la máscara de exclusión a los candidatos
-    cmp r5, r6                // Compara el valor nuevo con el original
-    beq siguiente_columna_th   // Si no cambió, pasa a la siguiente columna
-    strh r5, [r0, r4]         // Si cambió, guarda el nuevo valor en la celda
+thumb_loop_j_end:
+    add r1, r1, #1
+    b thumb_loop_i
 
-siguiente_columna_th:
-    add r3, #1                // Incrementa el contador de columnas
-    b recorrer_columnas_th     // Vuelve al inicio del bucle de columnas
+thumb_loop_i_end:
+    mov r0, r10                          @ Almacenar el contador de celdas vacías en r0 para devolverlo como resultado
+    bx lr
 
-fin_recorrer_columnas_th:
+update_row_candidates_thumb:
+    movs r1, #0
+fila_loop_t:
+    cmp r1, #9
+    bge fin_fila_t
 
-    // Cálculo para iterar sobre la región 3x3 (bloque del Sudoku)
-    mov r3, r1                // Carga la fila en r3
-for_resto_fila_th:
-    cmp r3, #2                // Compara si la fila es menor o igual a 2
-    ble fin_resto_fila_th      // Si lo es, termina el bucle
-    sub r3, r3, #3            // Resta 3 para calcular el inicio de la región
-    b for_resto_fila_th        // Repite hasta que r3 <= 2
+    lsl r2, r1, #5                   @ Desplazar la fila (r8 * 32)
+    add r7, r2, r5                  @ r10 = desplazamiento total = fila + columna (columna fija para r5)
 
-fin_resto_fila_th:
-    sub r3, r1, r3            // Corrige el valor de r3
+    ldrh r3, [r0, r7]
 
-    mov r4, r2                // Carga la columna en r4
-for_resto_columna_th:
-    cmp r4, #2                // Compara si la columna es menor o igual a 2
-    ble fin_resto_columna_th   // Si lo es, termina el bucle
-    sub r4, r4, #3            // Resta 3 para calcular el inicio de la región
-    b for_resto_columna_th     // Repite hasta que r4 <= 2
+    bic r3, r3, r6                   @ celda &= ~(1 << displace) - Actualizar el bit candidato
+    strh r3, [r0, r7]
 
-fin_resto_columna_th:
-    sub r4, r2, r4            // Corrige el valor de r4
+    add r1, r1, #1
+    b fila_loop_t
 
-    // Recorre las celdas dentro de la región 3x3
-    mov r5, r3                // Carga el inicio de la región en r5
-    mov r6, r4                // Carga el inicio de la región en r6
+fin_fila_t:
+    bx lr
 
-    add r3, #3                // Define el límite de la región en filas
-    add r4, #3                // Define el límite de la región en columnas
+update_column_candidates_thumb:
+    movs r1, #0
+col_loop_t:
+    cmp r1, #9
+    bge fin_col_t
 
-recorrer_region_fil_th:
-    cmp r5, r3                // Compara r5 con el límite de la región en filas
-    beq fin_recorrer_region_fil_th // Si r5 llega al límite, termina el bucle de la región
+    lsl r2, r1, #1                   @ Desplazar la columna (r8 * 2)
+    add r7, r4, r2                  	@ r10 = desplazamiento total = fila + columna (fila fija para r4)
 
-    recorrer_region_col_th:
-        cmp r6, r4            // Compara r6 con el límite de la región en columnas
-        beq fin_recorrer_region_col_th // Si r6 llega al límite, termina el bucle de la región
+    ldrh r3, [r0, r7]
 
-        // Evita la celda que inició la propagación
-        cmp r5, r1            // Compara si la fila es la misma que la original
-        beq siguiente_region_col_th // Si es la misma, salta a la siguiente columna
-        cmp r6, r2            // Compara si la columna es la misma que la original
-        beq siguiente_region_col_th // Si es la misma, salta a la siguiente columna
+    bic r3, r3, r6                   @ celda &= ~(1 << displace) - Actualizar el bit candidato
+    strh r3, [r0, r7]
 
-        // Cálculo de la dirección de la celda dentro de la región
-        push {r2-r4}          // Guarda los registros temporales
-        mov r2, #0            // Inicializa r2 en 0
-        mov r3, r5            // Carga r5 en r3 para calcular el desplazamiento de la fila
-        mov r4, r6            // Carga r6 en r4 para calcular el desplazamiento de la columna
+    add r1, r1, #1
+    b col_loop_t
 
-        lsl r3, #5            // Multiplica fila por 32
-        add r2, r2, r3        // Añade el desplazamiento de la fila a r2
-        lsl r4, #1            // Multiplica columna por 2
-        add r2, r2, r4        // Añade el desplazamiento de la columna a r2
+fin_col_t:
+    bx lr
 
-        // Cargar el valor de la celda y aplicar la máscara de exclusión
-        ldrh r3, [r0, r2]     // Carga el valor de la celda en r3
-        mov r4, r3            // Guarda el valor original de la celda en r4
-        and r4, r4, r7        // Aplica la máscara de exclusión a los candidatos
-        cmp r3, r4            // Compara el valor nuevo con el original
-        beq siguiente_region_col_th2 // Si no cambió, pasa a la siguiente columna
-        strh r4, [r0, r2]     // Si cambió, guarda el nuevo valor en la celda
+calc_region_indexes_thumb:
+    mov r3, r2
+    mov r5, #0
+col_index_t:
+    cmp r3, #3                        @ Si es menor a 3, termina el cálculo de columna
+    blt col_index_end_t
 
-siguiente_region_col_th2:
-        pop {r2-r4}           // Restaura los registros temporales
-siguiente_region_col_th:
-        add r6, #1            // Incrementa el contador de columnas
-        b recorrer_region_col_th // Vuelve al inicio del bucle de columnas en la región
+    sub r3, r3, #3                    @ Restas sucesivas para determinar la region de la celda (1°,2° o 3° region horizontal)
+    add r5, r5, #3                    @ Aumentar #3 para ubicarse al inicio de la región correspondiente
+    b col_index_t
 
-fin_recorrer_region_col_th:
-    add r5, #1                // Incrementa el contador de filas
-    sub r6, r4, #3            // Reinicia el contador de columnas al inicio de la región
-    b recorrer_region_fil_th   // Vuelve al inicio del bucle de filas en la región
+col_index_end_t:
+    movs r2, r5                       @ Guardar el índice calculado en r2 (columna)
 
-fin_recorrer_region_fil_th:
-    pop {r3-r7}               // Restaura los registros
-    bx lr                     // Retorna de la función
+    movs r3, r1
+    movs r4, #0
+row_index_t:
+    cmp r3, #3                        @ Si es menor a 3, termina el cálculo de fila
+    blt row_index_end_t
+    sub r3, r3, #3                    @ Restas sucesivas para determinar la región de la celda (1°,2° o 3° region vertical)
+    add r4, r4, #3                    @ Aumentar #3 para ubicarse al inicio de la región correspondiente
+    b row_index_t
 
+row_index_end_t:
+    movs r1, r4                       @ Guardar el índice calculado en r1 (fila)
+
+    add r4, r1, #3                    @ r4 = Límite superior de la fila
+    add r5, r2, #3                    @ r5 = Límite superior de la columna
+
+    bx lr
+
+update_region_candidates_thumb:
+    @ r0 = cuadricula
+    @ r1 = indice inicial region (fila)
+    @ r2 = indice inicial region (columna)
+    @ r3 = valor_celda
+    @ r4 = limite max region (fila)
+    @ r5 = limite max region (columna)
+    @ r6 = bit de desactivacion desplazado
+    @ r7 = desplazamiento total (fila + columna)
+
+region_row_loop_t:
+    cmp r1, r4
+    bge end_of_region_t
+
+	push {r4}
+region_col_loop_t:
+	push {r5}						@ Backup del limite superior de la columna
+    cmp r2, r5
+    bge end_of_column_t
+
+    lsl r4, r1, #5                  @ Desplazamiento fila (r1 * 32)
+    lsl r5, r2, #1                  @ Desplazamiento columna (r2 * 2)
+    add r7, r4, r5                 	@ Desplazamiento total de la celda (fila + columna)
+
+    ldrh r3, [r0, r7]
+    bic r3, r3, r6                    @ celda &= ~(1 << displace)
+    strh r3, [r0, r7]
+
+    add r2, r2, #1
+	pop {r5}
+    b region_col_loop_t
+
+end_of_column_t:
+    add r1, r1, #1
+    sub r2, r2, #3
+    pop {r4}						@ Restaurar el limite superior de la fila
+    b region_row_loop_t
+
+end_of_region_t:
+    bx lr
 ################################################################################
 .arm
 sudoku_candidatos_init_arm:
-	push {r11, r12, lr}
     @ r0 = cuadricula
     @ r1 = fila
     @ r2 = columna
@@ -190,68 +203,106 @@ sudoku_candidatos_init_arm:
     @ r6 = 0x1FF0 lista de candidatos
     @ r7 = desplazamiento total
 
-    mov r1, #0
-    mov r6, #0x1F00               	@ Cargar parte alta de (0x1F00)
-    orr r6, r6, #0x00F0           	@ Combinar parte baja (0x00F0) para obtener 0x1FF0
+	MOV r9, r1						@ r9 = version propagar (C=0, ARM=1, THUMB=2)
+
+    MOV r1, #0
+    MOV r6, #0x1F00               	@ Cargar parte alta de (0x1F00)
+    ORR r6, r6, #0x00F0           	@ Combinar parte baja (0x00F0) para obtener 0x1FF0
 
 init_fila:
-    cmp r1, #9
-    bge fin_init_fila
+    CMP r1, #9
+    BGE fin_init
 
-    lsl r4, r1, #5					@ Desplazamiento a siguiente fila (r1 * 32 bytes)
+    LSL r4, r1, #5					@ Desplazamiento a siguiente fila (r1 * 32 bytes)
 
-    mov r2, #0
+    MOV r2, #0
 init_columna:
-    cmp r2, #9
-    bge fin_init_columna
+    CMP r2, #9
+    BGE fin_init_columna
 
-    lsl r5, r2, #1					@ Desplazamiento a siguiente columna (r2 * 2 bytes)
+    LSL r5, r2, #1					@ Desplazamiento a siguiente columna (r2 * 2 bytes)
 
-    add r7, r4, r5        			@ Desplazamiento total (fila + columna)
+    ADD r7, r4, r5        			@ Desplazamiento total (fila + columna)
 
-    ldrh r3, [r0, r7]
+    LDRH r3, [r0, r7]
 
-   	and r8, r3, #0x8000				@ Objeter valor de la pista
-	cmp r8, #0x8000					@ Si pista == 1 se omite la inicializacion de candidatos
-    bge skip_init
+   	AND r8, r3, #0x8000				@ Objeter valor de la pista
+	CMP r8, #0x8000					@ Si pista == 1 se omite la inicializacion de candidatos
+    BGE skip_init
 
-    orr r3, r3, r6        			@ celda |= 0x1FF0 - Activar todos los candidatos
-    strh r3, [r0, r7]
+    ORR r3, r3, r6        			@ celda |= 0x1FF0 - Activar todos los candidatos
+    STRH r3, [r0, r7]
 
 skip_init:
-    add r2, r2, #1
-    b init_columna
+    ADD r2, r2, #1
+    B init_columna
 
 fin_init_columna:
-    add r1, r1, #1
-    b init_fila
-
-fin_init_fila:
-	mov r1, #0
-	mov r2, #0
-
-	mov r10, #2								@ Selector de version propagar (1 = ARM, 2 = THUMB)
-	cmp r10, #1
-	beq propagar_arm
-
-	cmp r10, #2
-	beq propagar_thumb
-
-propagar_arm:
-	bl sudoku_candidatos_propagar_arm
-	b fin_init
-propagar_thumb:
-	bl sudoku_candidatos_propagar_thumb
-	b fin_init
+    ADD r1, r1, #1
+    B init_fila
 
 fin_init:
-	pop {r11, r12, lr}
-    bx lr
+
+@ Recorrer la cuadricula para llamar a las versiones de propagar
+
+	MOV r10, #0							@ Contador de celdas vacias
+	MOV r1, #0
+fila_cuadricula:
+	CMP r1, #9
+	BGE fin_cuadricula
+
+	LSL r4, r1, #5
+
+	MOV r2, #0
+recorrer_columna:
+	CMP r2, #9
+	BGE siguiente_fila
+
+	LSL r6, r2, #1
+
+	ADD r7, r4, r6
+
+	LDRH r3, [r0, r7]
+
+	AND r3, r3, #0xF				@celda_leer_valor()
+	CMP r3, #0
+	BEQ skip_propagation
+
+	CMP r9, #0
+	BEQ propagar_C
+
+	CMP r9, #1
+	BEQ propagar_ARM
+skip_propagation:
+	ADD r10, r10, #1
+	B final_columna
+propagar_C:
+	STMED SP!, {r0-r12, r14}
+	BL sudoku_candidatos_propagar_c
+	LDMED SP!, {r0-r12, r14}
+	B final_columna
+propagar_ARM:
+	STMED SP!, {r0-r12, r14}
+	BL sudoku_candidatos_propagar_arm
+	LDMED SP!, {r0-r12, r14}
+	B final_columna
+#propagar_THUMB:
+#	BL sudoku_candidatos_propagar_arm
+#	B final_columna
+final_columna:
+	ADD r2, r2, #1
+	B recorrer_columna
+siguiente_fila:
+	ADD r1, r1, #1
+	B fila_cuadricula
+fin_cuadricula:
+	MOV r0, r10
+  	BX lr
 
 
-@ Recorre la cuadricula llamando a las funciones de propagacion (fila, columna y region) SI la celda tiene un valor distinto a 0
+@ Calcula el desplazamiento necesario para llegar a la celda, y llama a las funciones de propagacion (fila, columna y region)
 sudoku_candidatos_propagar_arm:
-	push {r0, r5, r11, r12, lr}
+	STMFD sp!, {r11, r12, lr}
 	@ r0 = cuadricula
 	@ r1 = indice fila
 	@ r2 = indice columna
@@ -260,166 +311,131 @@ sudoku_candidatos_propagar_arm:
 	@ r5 = desplazamiento de la columna
 	@ r6 = bit desplazado (se usara para desactivar los candidatos)
 	@ r7 = desplazamiento total (r4 + r5)
-	@ r10 = contador de celdas vacias
-	@ r8-r12 = registros de trabajo
-	mov r10, #0
-loop_i:
-	cmp r1, #9
-	bge loop_i_end
 
-	lsl r4, r1, #5						@ Desplazamiento a siguiente fila (r1 * 32 bytes)
+	LSL r4, r1, #5							@ Desplazamiento fila (r1 * 32 bytes)
 
-	mov r2, #0
-loop_j:
-	cmp r2, #9
-	bge loop_j_end						@ Comprobar si se ha llegado a la ultima columna
+	LSL r5, r2, #1							@ Desplazamiento columna (r2 * 2 bytes)
 
-	lsl r5, r2, #1						@ Desplazamiento a siguiente columna (r2 * 2 bytes)
+	ADD r7, r4, r5							@ Desplazamiento total (fila + columna)
 
-	add r7, r4, r5						@ Desplazamiento total (fila + columna)
-	ldrh r3, [r0, r7]
+	ADD r8, r3, #3							@ r8 = displace = (3 + r3)
 
-	and r3, r3, #0xF					@ Objeter valor actual de la celda (celda_leer_valor)
-	cmp r3, #0							@ Si valor == 0 se aumentan las celdas vacias y se omite la propagacion
-	beq empty_cell
+	MOV r6, #1
+	LSL r6, r6, r8							@ desplazar bit a la izquierda r8 posiciones
 
-	add r8, r3, #3						@ r8 = displace = (3 + r3)
-	mov r6, #1
-	lsl r6, r6, r8						@ desplazar bit a la izquierda r8 posiciones
+	LDRH r8, [r0, r7]
 
-	push {r1, r2, r10, lr}				@ Backup de indices de fila y columna, y el contador de celdas vacias
-
-	bl arm_update_row_candidates		@ Actualizar filas
-
-	bl arm_update_column_candidates		@ Actualizar columnas
-
-	bl arm_calc_region_indexes				@ Calcular indices de la region
-	bl arm_update_region_candidates		@ Actualizar region
-	pop {r1, r2, r10, lr}				@ Restaurar valor de los indices y las celdas vacias
-
-	b next_column
-
-empty_cell:
-	add r10, r10, #1
-	b next_column
-
-next_column:
-	add r2, r2, #1
-	b loop_j
-loop_j_end:
-	add r1, r1, #1
-	b loop_i
-loop_i_end:
-	pop {r0, r5, r11, r12, lr}			@ Restaurar valor de los punteros a funciones y cuadricula
-	mov r0, r10							@ Almacenar el contador de celdas vacias en r0 para devolverse como resultado de la funcion
-	bx lr								@ Devolver el control a la funcion en C
-
-
-arm_update_row_candidates:
-    mov r8, #0
+@ Actualiza los candidatos de la fila (verticalmente)
+	MOV r9, #0
 fila_loop:
-    cmp r8, #9
-    bge fin_fila
+    CMP r9, #9
+    BGE fin_fila
 
-    lsl r9, r8, #5               		@ Desplazar la fila (r8 * 32)
-    add r10, r9, r5               		@ r10 = desplazamiento total = fila + columna (columna fija para r5)
+    LSL r10, r9, #5               			@ Desplazar la fila (r9 * 32)
+    ADD r11, r10, r5               			@ r11 = desplazamiento total = fila + columna (columna fija para r5)
 
-    ldrh r3, [r0, r10]
+    LDRH r8, [r0, r11]
 
-    bic r3, r3, r6               		@ celda &= ~(1 << displace) - Actualizar el bit candidato
-    strh r3, [r0, r10]
+    AND r12, r8, #0x8000
+    CMP r12, #0x8000
+    BEQ skip_row
 
-    add r8, r8, #1
-    b fila_loop
+    CMP r9, r1
+    BEQ skip_row
 
+    BIC r8, r8, r6               			@ celda &= ~(1 << displace) - Actualizar el bit candidato
+    STRH r8, [r0, r11]
+skip_row:
+    ADD r9, r9, #1
+    B fila_loop
 fin_fila:
-    bx lr
-
-arm_update_column_candidates:
-    mov r8, #0
+@ Actualiza los candidatos de la columna (Horizontalmente)
+	MOV r9, #0
 col_loop:
-    cmp r8, #9
-    bge fin_col
+    CMP r9, #9
+    BGE fin_col
 
-    lsl r9, r8, #1               		@ Desplazar la columna (r8 * 2)
-    add r10, r4, r9               		@ r10 = desplazamiento total = fila + columna (fila fija para r4)
+    LSL r10, r9, #1               			@ Desplazar la columna (r9 * 2)
+    ADD r11, r4, r10               			@ r11 = desplazamiento total = fila + columna (fila fija para r4)
 
-    ldrh r3, [r0, r10]
+    LDRH r8, [r0, r11]
 
-    bic r3, r3, r6               		@ celda &= ~(1 << displace) - Actualizar bit candidato
-    strh r3, [r0, r10]
+    AND r12, r8, #0x8000
+    CMP r12, #0x8000
+    BEQ skip_column
 
-    add r8, r8, #1
-    b col_loop
+    CMP r9, r2
+    BEQ skip_column
 
+    BIC r8, r8, r6               			@ celda &= ~(1 << displace) - Actualizar bit candidato
+    STRH r8, [r0, r11]
+skip_column:
+    ADD r9, r9, #1
+    B col_loop
 fin_col:
-    bx lr
-
-
-arm_calc_region_indexes:
-	mov r8, r2
-	mov r9, #0
-col_index:
-	cmp r8, #3
-	blt col_index_end					@ Si es menor a 3, termina el calculo de columna
-
-	sub r8, r8, #3						@ Restas sucesivas para determinar la region de la celda (1°,2° o 3° region horizontal)
-	add r9, r9, #3						@ Aumentar #3 para ubicarse al inicio de la region correspondiente
-	b col_index
-col_index_end:
-	mov r2, r9							@ Guardar el indice calculado en r1 (fila)
-
-	mov r8, r1
-	mov r9, #0
+@ Calcula el limite inferior (esquina superior izquierda) y limite superior de la region 3x3 correspondiente a la celda
+	MOV r8, r1
+	MOV r9, #0
 row_index:
-	cmp r8, #3
-	blt row_index_end					@ Si es menor a 3, termina el calculo de fila
+	CMP r8, #3
+	BLT row_index_end						@ Si es menor a 3, termina el calculo de fila
 
-	sub r8, r8, #3						@ Restas sucesivas para determinar la region de la celda (1°,2° o 3° region vertical)
-	add r9, r9, #3						@ Aumentar #3 para ubicarse al inicio de la region correspondiente
-	b row_index
+	SUB r8, r8, #3							@ Restas sucesivas para determinar la region de la celda (1°,2° o 3° region vertical)
+	ADD r9, r9, #3							@ Aumentar #3 para ubicarse al inicio de la region correspondiente
+	B row_index
 row_index_end:
-	mov r1, r9							@ Guardar el indice calculado en r2 (columna)
+	MOV r7, r9								@ Guardar el indice calculado en r8 (fila)
 
-	add r8, r1, #3						@ r8 = Limite superior de la fila
-	add r9, r2, #3						@ r9 = Limite superior de la columna
+	MOV r8, r2
+	MOV r9, #0
+col_index:
+	CMP r8, #3
+	BLT col_index_end						@ Si es menor a 3, termina el calculo de columna
 
-	bx lr
+	SUB r8, r8, #3							@ Restas sucesivas para determinar la region de la celda (1°,2° o 3° region horizontal)
+	ADD r9, r9, #3							@ Aumentar #3 para ubicarse al inicio de la region correspondiente
+	B col_index
+col_index_end:
+	MOV r8, r9								@ Guardar el indice calculado en r7 (columna)
 
-arm_update_region_candidates:
-	@ r0 = cuadricula
-	@ r1 = indice inicial region (fila)
-	@ r2 = indice inicial region (columna)
-	@ r3 = valor_celda
-	@ r6 = bit e desactivacion desplazado
-	@ r8 = limite max region (fila)
-	@ r9 = limite max region (columna)
-
+	ADD r9, r7, #3							@ r9 = Limite superior de la fila
+	ADD r10, r8, #3							@ r10 = Limite superior de la columna
+@ Actualiza los candidatos de la region 3x3
 region_row_loop:
-	cmp r1, r8
-	bge end_of_region
-
+	CMP r7, r9
+	BGE end_of_region
 region_col_loop:
-	cmp r2, r9
-	bge end_of_column
+	CMP r8, r10
+	BGE end_of_column
 
-	lsl r10, r1, #5						@ Desplazamiento fila (r1 * 32)
-	lsl r11, r2, #1						@ Desplazamiento columna (r2 * 2)
-	add r12, r10, r11					@ Desplazamiento total de la celda (fila + columna)
+	LSL r4, r7, #5							@ Desplazamiento fila (r7 * 32)
+	LSL r5, r8, #1							@ Desplazamiento columna (r10 * 2)
+	ADD r11, r4, r5							@ Desplazamiento total de la celda (fila + columna)
 
-	ldrh r3, [r0, r12]
-	bic r3, r3, r6						@ celda &= ~(1 << displace)
-	strh r3, [r0, r12]
-	add r2, r2, #1
-	b region_col_loop
+	LDRH r12, [r0, r11]
 
+	AND r4, r12, #0x8000
+	CMP r4, #0x8000
+	BEQ skip_cell
+
+	CMP r7, r1
+	BEQ skip_cell
+
+	CMP r8, r2
+	BEQ skip_cell
+
+	BIC r12, r12, r6						@ celda &= ~(1 << displace) - Actualizar bit candidato
+	STRH r12, [r0, r11]
+skip_cell:
+	ADD r8, r8, #1
+	B region_col_loop
 end_of_column:
-	add r1, r1, #1
-	sub r2, r2, #3
-	b region_row_loop
-
+	ADD r7, r7, #1
+	SUB r8, r8, #3						@ Regresar a la primera columa de la región
+	B region_row_loop
 end_of_region:
-	bx lr
+	LDMFD sp!, {r11, r12, lr}
+	BX lr
 
 start:
 .arm    /* indicates that we are using the ARM instruction set */
@@ -466,6 +482,7 @@ Reset_Handler:
         mov         lr, pc
         bx          r5
 
+.extern		sudoku_candidatos_propagar_c
 stop:
         B       stop        /*  end of program */
 
